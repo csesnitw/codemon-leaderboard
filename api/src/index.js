@@ -15,8 +15,9 @@ const CF_API_KEY = process.env.CF_API_KEY;
 const CF_API_SECRET = process.env.CF_API_SECRET;
 
 // --- In-memory store for streaks and contest data ---
-const userContestHistory = new Map(); // handle -> [{ contestId, score, rank }]
-const contestCache = new Map(); // contestId -> data
+// This is now primarily for the WebSocket live poller
+const userContestHistory = new Map();
+const contestCache = new Map(); // Caches raw contest data
 
 app.use(cors({
   origin: (origin, cb) => cb(null, true),
@@ -25,12 +26,13 @@ app.use(cors({
 app.use(express.json());
 
 /**
- * Calculates custom scores based on the official rules including streak bonuses.
- * @param {object} standingsData - The 'result' object from the Codeforces API.
+ * A stateful calculator for custom scores. It reads from and writes to the provided userHistory map.
+ * @param {object} standingsData - The raw 'result' object from the Codeforces API.
  * @param {string} contestId - The ID of the current contest.
+ * @param {Map} userHistory - The map to use for tracking user contest history for streak calculation.
  * @returns {object} The standingsData object with custom scores and new ranks.
  */
-function calculateCustomScores(standingsData, contestId) {
+function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
   if (!standingsData || !standingsData.rows) {
     return standingsData;
   }
@@ -55,28 +57,27 @@ function calculateCustomScores(standingsData, contestId) {
     const handle = row.party.members[0].handle;
     contestParticipants.add(handle);
 
-    let basePoints = 0;
-    let bonusPoints = 0;
+    let baseScore = 0;
+    let firstAcBonus = 0;
 
     if (row.points > 0) {
-      if (row.rank <= 30) basePoints = 31 - row.rank;
+      if (row.rank <= 30) baseScore = 31 - row.rank;
       
       row.problemResults.forEach((pr, index) => {
         const firstAc = firstAcByProblem.get(index);
         if (pr.points > 0 && firstAc && firstAc.handle === handle && firstAc.time === pr.bestSubmissionTimeSeconds) {
-          bonusPoints += 2;
+          firstAcBonus += 2;
         }
       });
     }
 
-    // Temporarily store raw scores before applying streak
-    const rawScore = basePoints + bonusPoints;
+    const rawScore = baseScore + firstAcBonus;
 
-    // Update user history for streak calculation later
-    if (!userContestHistory.has(handle)) {
-      userContestHistory.set(handle, []);
+    // Update the provided history map for streak calculation later
+    if (!userHistory.has(handle)) {
+      userHistory.set(handle, []);
     }
-    const history = userContestHistory.get(handle);
+    const history = userHistory.get(handle);
     const existingEntry = history.find(entry => entry.contestId === contestId);
     if (!existingEntry) {
       history.push({ contestId, score: rawScore, rank: row.rank });
@@ -85,17 +86,16 @@ function calculateCustomScores(standingsData, contestId) {
       existingEntry.rank = row.rank;
     }
     
-    return { ...row, rawScore };
+    return { ...row, rawScore, baseScore, firstAcBonus };
   });
 
   // Now, apply streak multipliers
   const finalScoredRows = scoredRows.map(row => {
     const handle = row.party.members[0].handle;
-    const history = userContestHistory.get(handle)
+    const history = userHistory.get(handle)
       .sort((a, b) => parseInt(a.contestId, 10) - parseInt(b.contestId, 10));
 
     let streak = 0;
-    // Find streak ending at the *current* contest
     const currentContestIdx = history.findIndex(h => h.contestId === contestId);
     if (currentContestIdx !== -1) {
       for (let i = currentContestIdx; i >= 0; i--) {
@@ -111,15 +111,14 @@ function calculateCustomScores(standingsData, contestId) {
     if (streak >= 4) streakMultiplier = 1.15;
     else if (streak === 3) streakMultiplier = 1.10;
     else if (streak === 2) streakMultiplier = 1.05;
-
+    
+    const streakBonus = row.rawScore * (streakMultiplier - 1);
     const customScore = row.rawScore * streakMultiplier;
-    return { ...row, customScore, streak };
+    return { ...row, customScore, streak, streakBonus };
   });
 
-  // Sort by new custom score, then by penalty for tie-breaking
   finalScoredRows.sort((a, b) => b.customScore - a.customScore || a.penalty - b.penalty);
   
-  // Re-assign ranks based on the new sorting
   let currentRank = 0;
   let lastScore = -1;
   let lastPenalty = -1;
@@ -134,8 +133,7 @@ function calculateCustomScores(standingsData, contestId) {
 
   standingsData.rows = finalScoredRows;
   
-  // For any user in history who didn't participate, add a zero score entry to break their streak
-  for (const [handle, history] of userContestHistory.entries()) {
+  for (const [handle, history] of userHistory.entries()) {
     if (!contestParticipants.has(handle) && !history.find(e => e.contestId === contestId)) {
       history.push({ contestId, score: 0, rank: null });
     }
@@ -144,22 +142,19 @@ function calculateCustomScores(standingsData, contestId) {
   return standingsData;
 }
 
-
-async function fetchAndProcessStandings(contestId) {
-  if (contestCache.has(contestId)) {
-    return contestCache.get(contestId);
-  }
-
-  const data = await fetchStandings({ contestId, showUnofficial: 'false' });
-
-  if (data.status === 'OK') {
-    const processedData = calculateCustomScores(data.result, contestId);
-    contestCache.set(contestId, processedData);
-    return processedData;
-  } else {
-    throw new Error(data.comment || 'Failed to fetch standings');
-  }
+// Fetches raw standings and caches them
+async function getRawStandings(contestId) {
+    if (contestCache.has(contestId)) {
+        return contestCache.get(contestId);
+    }
+    const data = await fetchStandings({ contestId, showUnofficial: 'false' });
+    if (data.status === 'OK') {
+        contestCache.set(contestId, data.result);
+        return data.result;
+    }
+    throw new Error(data.comment || `Failed to fetch standings for contest ${contestId}`);
 }
+
 
 app.get('/api/multiconteststandings', async (req, res) => {
   const { contestIds } = req.query;
@@ -168,38 +163,60 @@ app.get('/api/multiconteststandings', async (req, res) => {
   }
 
   const ids = contestIds.split(',').map(id => id.trim());
-  const cumulativeScores = new Map(); // handle -> { score, penalties, contests: [] }
-
+  const cumulativeScores = new Map();
+  
   try {
-    for (const id of ids) {
-      const contestData = await fetchAndProcessStandings(id);
-      for (const row of contestData.rows) {
-        const handle = row.party.members[0].handle;
-        if (!cumulativeScores.has(handle)) {
-          cumulativeScores.set(handle, { score: 0, penalty: 0, contests: {} });
+    // 1. Fetch all raw data first
+    const allRawContestData = await Promise.all(ids.map(id => getRawStandings(id)));
+
+    // 2. Sort contests chronologically to process in order
+    allRawContestData.sort((a, b) => parseInt(a.contest.id, 10) - parseInt(b.contest.id, 10));
+    
+    const requestScopedHistory = new Map(); // Use a temporary history for this request only
+    const processedContests = {};
+
+    // 3. Process each contest in order, building up the temporary history
+    for (const rawData of allRawContestData) {
+        const contestId = rawData.contest.id.toString();
+        // The `calculateScoresAndStreaks` function will now modify `requestScopedHistory`
+        const processedData = calculateScoresAndStreaks(JSON.parse(JSON.stringify(rawData)), contestId, requestScopedHistory);
+        processedContests[contestId] = processedData;
+    }
+
+    // 4. Aggregate the results for the final leaderboard
+    for (const contestId of ids) { // Iterate in original order for the response structure
+        const contestData = processedContests[contestId];
+        if (!contestData) continue;
+
+        for (const row of contestData.rows) {
+            const handle = row.party.members[0].handle;
+            if (!cumulativeScores.has(handle)) {
+                cumulativeScores.set(handle, { score: 0, penalty: 0, contests: {} });
+            }
+            const userEntry = cumulativeScores.get(handle);
+            userEntry.score += row.customScore;
+            userEntry.penalty += row.penalty;
+            userEntry.contests[contestId] = { 
+                score: row.customScore, 
+                rank: row.rank, 
+                streak: row.streak,
+                baseScore: row.baseScore,
+                firstAcBonus: row.firstAcBonus,
+                streakBonus: row.streakBonus,
+            };
         }
-        const userEntry = cumulativeScores.get(handle);
-        userEntry.score += row.customScore;
-        userEntry.penalty += row.penalty;
-        userEntry.contests[id] = { score: row.customScore, rank: row.rank, streak: row.streak };
-      }
     }
 
     const leaderboard = Array.from(cumulativeScores.entries())
       .map(([handle, data]) => ({ handle, ...data }))
       .sort((a, b) => b.score - a.score || a.penalty - b.penalty);
 
-    res.json({ status: 'OK', result: { leaderboard, problems: ids } }); // Using problems to pass contestIds
+    res.json({ status: 'OK', result: { leaderboard, problems: ids } });
   } catch (err) {
     res.status(500).json({ status: 'FAILED', comment: err.message });
   }
 });
 
-
-// --- Existing Codeforces API helpers and WebSocket server ---
-// This part remains the same for single-contest live updates.
-// ... (generateApiSig, fetchStandings, WebSocket server setup)
-// Note: WebSocket part is now for single-contest view only.
 
 // --- Codeforces API Helper Functions ---
 
@@ -210,22 +227,13 @@ app.get('/api/multiconteststandings', async (req, res) => {
  * @returns {string} The generated apiSig.
  */
 function generateApiSig(methodName, params) {
-  // Sort parameters alphabetically by key
   const sortedParams = Object.keys(params)
     .sort()
     .map(key => `${key}=${encodeURIComponent(params[key])}`)
     .join('&');
-
-  // Generate a 6-character random string
   const rand = Math.random().toString(36).substring(2, 8);
-
-  // Create the string to be hashed
   const text = `${rand}/${methodName}?${sortedParams}#${CF_API_SECRET}`;
-  
-  // Hash the string using SHA-512
   const hash = crypto.createHash('sha512').update(text).digest('hex');
-
-  // The final apiSig is the random string prepended to the hash
   return `${rand}${hash}`;
 }
 
@@ -240,30 +248,15 @@ async function fetchStandings(queryParams) {
   const baseUrl = `https://codeforces.com/api/${methodName}`;
 
   if (CF_API_KEY && CF_API_SECRET) {
-    // --- Authenticated Request for Gyms/Private Contests ---
     const time = Math.floor(Date.now() / 1000);
-    const paramsForSig = {
-      ...queryParams,
-      apiKey: CF_API_KEY,
-      time,
-    };
+    const paramsForSig = { ...queryParams, apiKey: CF_API_KEY, time };
     const apiSig = generateApiSig(methodName, paramsForSig);
-
-    const finalParams = new URLSearchParams({
-      ...queryParams,
-      apiKey: CF_API_KEY,
-      time,
-      apiSig,
-    }).toString();
-    
-    const url = `${baseUrl}?${finalParams}`;
-    const { data } = await axios.get(url, { timeout: 20000 });
+    const finalParams = new URLSearchParams({ ...queryParams, apiKey: CF_API_KEY, time, apiSig }).toString();
+    const { data } = await axios.get(`${baseUrl}?${finalParams}`, { timeout: 20000 });
     return data;
   } else {
-    // --- Public Request ---
     const finalParams = new URLSearchParams(queryParams).toString();
-    const url = `${baseUrl}?${finalParams}`;
-    const { data } = await axios.get(url, { timeout: 20000 });
+    const { data } = await axios.get(`${baseUrl}?${finalParams}`, { timeout: 20000 });
     return data;
   }
 }
@@ -272,56 +265,23 @@ async function fetchStandings(queryParams) {
 // Simple health route
 app.get('/health', (_, res) => res.json({ ok: true }));
 
-// Proxy endpoint to fetch standings once
-app.get('/api/standings', async (req, res) => {
-  try {
-    const { contestId, from = 1, count = 100 } = req.query;
-    if (!contestId) {
-      return res.status(400).json({ status: 'FAILED', comment: 'contestId is required' });
-    }
-    // Fetch official participants only
-    const data = await fetchStandings({ contestId, from, count, showUnofficial: 'false' });
-    
-    // Apply custom scoring logic
-    if (data.status === 'OK') {
-      data.result = calculateCustomScores(data.result);
-    }
-    
-    res.json(data);
-  } catch (err) {
-    console.error(err.message);
-    // Pass through the error from Codeforces API if available
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-    res.status(500).json({ status: 'FAILED', comment: 'Server error fetching standings' });
-  }
-});
-
+// ---- WebSocket live updates (uses the global history) ----
 const server = app.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
 });
 
-// ---- WebSocket live updates ----
 const wss = new WebSocketServer({ server, path: '/ws' });
-
-// Track subscribers per contestId -> Set<WebSocket>
 const rooms = new Map();
-// Track intervals per contestId -> NodeJS.Timer
 const intervals = new Map();
 
 function subscribe(ws, contestId) {
-  if (!rooms.has(contestId)) {
-    rooms.set(contestId, new Set());
-  }
+  if (!rooms.has(contestId)) rooms.set(contestId, new Set());
   rooms.get(contestId).add(ws);
   console.log(`[ws] client subscribed to contest ${contestId}. Count=${rooms.get(contestId).size}`);
 
-  // Start polling if not already
   if (!intervals.has(contestId)) {
     const timer = setInterval(() => pollAndBroadcast(contestId), POLL_INTERVAL_MS);
     intervals.set(contestId, timer);
-    // Fire immediately once for the new subscriber
     pollAndBroadcast(contestId);
   }
 }
@@ -333,7 +293,6 @@ function unsubscribe(ws, contestId) {
   console.log(`[ws] client left contest ${contestId}. Count=${set.size}`);
   if (set.size === 0) {
     rooms.delete(contestId);
-    // Stop interval if no one is listening
     if (intervals.has(contestId)) {
       clearInterval(intervals.get(contestId));
       intervals.delete(contestId);
@@ -344,15 +303,9 @@ function unsubscribe(ws, contestId) {
 
 async function pollAndBroadcast(contestId) {
   try {
-    // Fetch official standings only.
-    const data = await fetchStandings({ contestId, from: 1, count: 200, showUnofficial: 'false' });
-
-    // Calculate custom scores before broadcasting
-    if (data.status === 'OK') {
-      data.result = calculateCustomScores(data.result);
-    }
-
-    const payload = JSON.stringify({ type: 'standings', contestId, data });
+    const rawData = await getRawStandings(contestId);
+    const dataWithScores = calculateScoresAndStreaks(JSON.parse(JSON.stringify(rawData)), contestId, userContestHistory);
+    const payload = JSON.stringify({ type: 'standings', contestId, data: { status: 'OK', result: dataWithScores }});
     const clients = rooms.get(contestId);
     if (!clients || clients.size === 0) return;
 
@@ -375,7 +328,6 @@ async function pollAndBroadcast(contestId) {
 }
 
 wss.on('connection', (ws, req) => {
-  // Parse query params for contestId
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const contestId = url.searchParams.get('contestId');
   if (!contestId) {
@@ -385,12 +337,8 @@ wss.on('connection', (ws, req) => {
   }
   subscribe(ws, contestId);
 
-  ws.on('close', () => {
-    unsubscribe(ws, contestId);
-  });
-
+  ws.on('close', () => unsubscribe(ws, contestId));
   ws.on('message', (msg) => {
-    // reserved for future features
     try {
       const data = JSON.parse(msg.toString());
       if (data.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }));

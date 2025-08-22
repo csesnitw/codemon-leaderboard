@@ -119,6 +119,11 @@ export default function App() {
                           {contest ? (
                             <div className="text-xs">
                               <div>Score: <span className="font-semibold">{contest.score.toFixed(2)}</span></div>
+                              <div className="text-slate-400 text-[10px]">
+                                ({contest.baseScore?.toFixed(2) || '0.00'}
+                                +{contest.firstAcBonus?.toFixed(2) || '0.00'})
+                                x{((contest.streakBonus / (contest.baseScore + contest.firstAcBonus)) + 1).toFixed(2) || '1.00'}
+                              </div>
                               <div>Rank: <span className={rankClass(contest.rank)}>{contest.rank || 'N/A'}</span></div>
                                <div>Streak: <span className="text-amber-300">{contest.streak || 0}x</span></div>
                             </div>
