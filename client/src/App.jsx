@@ -1,67 +1,55 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 
-const WS_URL = (contestId) => `ws://localhost:8787/ws?contestId=${encodeURIComponent(contestId)}`
+const API_URL = 'http://localhost:8787/api';
 
 function rankClass(rank) {
-  if (!rank) return ''
-  const r = +rank
-  if (r <= 10) return 'rank-master'
-  if (r <= 100) return 'rank-expert'
-  if (r <= 500) return 'rank-specialist'
-  if (r <= 2000) return 'rank-pupil'
-  return 'rank-newbie'
-}
-
-function toHHMM(t) {
-  const m = Math.floor(t / 60)
-  const s = t % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
+  if (!rank) return 'text-slate-400';
+  const r = +rank;
+  if (r <= 10) return 'rank-master';
+  if (r <= 100) return 'rank-expert';
+  if (r <= 500) return 'rank-specialist';
+  if (r <= 2000) return 'rank-pupil';
+  return 'rank-newbie';
 }
 
 export default function App() {
-  const [contestId, setContestId] = useState('1881')
-  const [status, setStatus] = useState('disconnected')
-  const [rows, setRows] = useState([])
-  const [problems, setProblems] = useState([])
-  const wsRef = useRef(null)
+  const [contestIds, setContestIds] = useState(); // Example contest IDs
+  const [status, setStatus] = useState('idle');
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [contestHeaders, setContestHeaders] = useState([]);
 
+  const fetchLeaderboard = async () => {
+    if (!contestIds.trim()) return;
+    setStatus('loading');
+    setLeaderboard([]);
+    setContestHeaders([]);
+    try {
+      const response = await axios.get(`${API_URL}/multiconteststandings`, {
+        params: { contestIds: contestIds.trim() }
+      });
+      if (response.data.status === 'OK') {
+        setLeaderboard(response.data.result.leaderboard);
+        setContestHeaders(response.data.result.problems); // Using 'problems' to carry contest IDs
+        setStatus('success');
+      } else {
+        setStatus('error');
+      }
+    } catch (error) {
+      console.error("Failed to fetch leaderboard:", error);
+      setStatus('error');
+    }
+  };
+  
+  // Fetch on initial load
   useEffect(() => {
-    // clean up socket on unmount
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
-      }
-    }
-  }, [])
-
-  const connect = () => {
-    if (!contestId.trim()) return
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
-    }
-    setRows([])
-    setProblems([])
-    setStatus('connecting')
-    const ws = new WebSocket(WS_URL(contestId.trim()))
-    wsRef.current = ws
-    ws.onopen = () => setStatus('connected')
-    ws.onclose = () => setStatus('disconnected')
-    ws.onerror = () => setStatus('error')
-    ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data)
-      if (msg.type === 'standings' && msg.data?.status === 'OK') {
-        const res = msg.data.result
-        setRows(res.rows || [])
-        setProblems(res.problems || [])
-      }
-    }
-  }
+    fetchLeaderboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const headers = useMemo(() => {
-    return ['Rank', 'Trainer', 'Points', 'Penalty', ...problems.map((p, idx) => `P${idx+1}`)]
-  }, [problems])
+    return ['Rank', 'Trainer', 'Total Score', ...contestHeaders];
+  }, [contestHeaders]);
 
   return (
     <div className="min-h-screen text-slate-100 bg-gradient-to-b from-slate-950 to-slate-900">
@@ -69,23 +57,24 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-pokeball border-2 border-slate-700 shadow-card"></div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">Pokémon CF Live Leaderboard</h1>
-            <p className="text-sm text-slate-400">Catch ranks in real time! (Powered by Codeforces)</p>
+            <h1 className="text-2xl font-bold">Pokémon CF Cumulative Leaderboard</h1>
+            <p className="text-sm text-slate-400">Track streaks across multiple contests!</p>
           </div>
           <div className="flex items-center gap-2">
             <input
-              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 outline-none focus:ring focus:ring-slate-700"
-              value={contestId}
-              onChange={e => setContestId(e.target.value)}
-              placeholder="contestId e.g. 1881"
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 outline-none focus:ring focus:ring-slate-700 w-64"
+              value={contestIds}
+              onChange={e => setContestIds(e.target.value)}
+              placeholder="e.g. 1881, 1882, 1883"
             />
             <button
-              onClick={connect}
+              onClick={fetchLeaderboard}
               className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 transition shadow-card"
+              disabled={status === 'loading'}
             >
-              Join
+              {status === 'loading' ? 'Loading...' : 'Refresh'}
             </button>
-            <span className="text-xs px-2 py-1 rounded-full border border-slate-700">
+             <span className="text-xs px-2 py-1 rounded-full border border-slate-700">
               {status}
             </span>
           </div>
@@ -94,7 +83,7 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <section className="poke-card">
-          <h2 className="text-lg font-semibold mb-4">Leaderboard</h2>
+          <h2 className="text-lg font-semibold mb-4">Cumulative Leaderboard</h2>
           <div className="overflow-auto rounded-xl border border-slate-800">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-900/70">
@@ -105,60 +94,44 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
-                  const handle = row.party?.members?.[0]?.handle || 'unknown'
-                  const rank = row.rank
-                  const penalty = row.penalty
-                  const points = row.points
-                  const problemResults = row.problemResults || []
-                  const solved = problemResults.reduce((a, b) => a + (b.points > 0 ? 1 : 0), 0)
-
-                  return (
-                    <tr key={handle} className="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-800/30 transition">
-                      <td className={`px-3 py-2 font-semibold ${rankClass(rank)}`}>{rank}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-pokeball border border-slate-700"></div>
-                          <div>
-                            <div className="font-medium">{handle}</div>
-                            <div className="text-xs text-slate-400">{solved} Pokéballs</div>
-                          </div>
+                {leaderboard.map((row, index) => (
+                  <tr key={row.handle} className="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-800/30 transition">
+                    <td className={`px-3 py-2 font-semibold ${rankClass(index + 1)}`}>{index + 1}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-pokeball border border-slate-700"></div>
+                        <div>
+                          <div className="font-medium">{row.handle}</div>
                         </div>
-                      </td>
-                      <td className="px-3 py-2">{points}</td>
-                      <td className="px-3 py-2">{penalty}</td>
-                      {problemResults.map((pr, idx) => {
-                        const ok = pr.points > 0
-                        const rej = pr.rejectedAttemptCount || 0
-                        const time = pr.bestSubmissionTimeSeconds
-                        return (
-                          <td key={idx} className="px-3 py-2">
-                            <span className={`badge ${ok ? 'bg-emerald-500/20 text-emerald-200' : 'bg-rose-500/10 text-rose-200'}`}>
-                              {ok ? `✓ ${toHHMM(time || 0)}` : (rej > 0 ? `×${rej}` : '—')}
-                            </span>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
-                })}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 font-bold">{row.score.toFixed(2)}</td>
+                    {contestHeaders.map(contestId => {
+                      const contest = row.contests[contestId];
+                      return (
+                        <td key={contestId} className="px-3 py-2">
+                          {contest ? (
+                            <div className="text-xs">
+                              <div>Score: <span className="font-semibold">{contest.score.toFixed(2)}</span></div>
+                              <div>Rank: <span className={rankClass(contest.rank)}>{contest.rank || 'N/A'}</span></div>
+                               <div>Streak: <span className="text-amber-300">{contest.streak || 0}x</span></div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-500">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-          {rows.length === 0 && (
-            <p className="text-slate-400 text-sm mt-4">No data yet. Enter a contest id and hit <b>Join</b>.</p>
+          {leaderboard.length === 0 && status !== 'loading' && (
+            <p className="text-slate-400 text-sm mt-4">No data available. Enter contest IDs and click <b>Refresh</b>.</p>
           )}
-        </section>
-
-        <section className="poke-card">
-          <h2 className="text-lg font-semibold mb-3">Tips</h2>
-          <ul className="list-disc list-inside text-slate-300 space-y-1">
-            <li>Lower your poll interval on the server for faster updates during live contests.</li>
-            <li>You can page results by tweaking the `/api/standings` params.</li>
-            <li>Style ranks like Pokémon types — go wild with Tailwind!</li>
-          </ul>
         </section>
       </main>
     </div>
-  )
+  );
 }
