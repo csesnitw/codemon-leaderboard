@@ -3,11 +3,18 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        pokemon: ['"Pokemon Solid"', 'sans-serif'],
+      },
       boxShadow: {
         card: "0 10px 25px rgba(0,0,0,0.35)",
       },
-      backgroundImage: {
-        'pokeball': "radial-gradient(circle at 50% 48%, #ffffff 0 37%, #e11d48 38% 65%, #0f172a 66% 100%)"
+      colors: {
+        'rank-master': '#c084fc', // Grape
+        'rank-expert': '#67e8f9',  // Cyan
+        'rank-specialist': '#6ee7b7', // Emerald
+        'rank-pupil': '#a3e635', // Lime
+        'rank-newbie': '#d1d5db', // Gray
       }
     },
   },

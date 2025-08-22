@@ -3,10 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pokémon CF Live Leaderboard</title>
+    <title>CodeMon by CSES</title>
+    <link rel="icon" type="image/png" href="https://www.freeiconspng.com/uploads/pokeball-icon-3.png" />
+    <link href="https://fonts.cdnfonts.com/css/pokemon-solid" rel="stylesheet">
   </head>
   <body class="bg-slate-950">
+    <div id="pokeball-loader">
+      <div class="pokeball-half top"></div>
+      <div class="pokeball-half bottom"></div>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const loader = document.getElementById('pokeball-loader');
+        const topHalf = document.querySelector('.pokeball-half.top');
+
+        // Wait a moment before starting the animation every time
+        setTimeout(() => {
+          loader.classList.add('animate');
+        }, 500); // 0.5-second delay
+
+        // After the animation is done, hide the loader completely
+        topHalf.addEventListener('animationend', () => {
+          loader.style.display = 'none';
+        });
+      });
+    </script>
   </body>
 </html>

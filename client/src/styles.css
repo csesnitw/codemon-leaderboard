@@ -6,8 +6,103 @@ html, body, #root {
   height: 100%;
 }
 
-.poke-card {
-  @apply rounded-2xl shadow-card p-4 bg-slate-900/80 border border-slate-800;
+/* Pokéball Loader Animation Styles */
+#pokeball-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pokeball-half {
+  width: 100%;
+  height: 50%;
+  position: relative;
+  background-color: #f0f0f0; /* White bottom half */
+  transition: transform 1s ease-in-out;
+}
+
+.pokeball-half.top {
+  background-color: #ee1515; /* Red top half */
+  border-bottom: 10px solid #222;
+}
+
+.pokeball-half.bottom {
+  border-top: 10px solid #222;
+}
+
+/* Creates the outer circle of the Pokéball button */
+.pokeball-half::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 15vh; /* Use viewport height for responsive sizing */
+  height: 15vh;
+  min-width: 100px;
+  min-height: 100px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  border: 10px solid #222;
+  box-sizing: border-box;
+}
+
+.pokeball-half.top::after {
+  bottom: calc(-7.5vh - 10px); /* Position half on the border */
+  min-height: 50px;
+}
+
+.pokeball-half.bottom::after {
+  top: calc(-7.5vh - 10px); /* Position half on the border */
+  min-height: 50px;
+}
+
+/* Creates the inner circle of the button */
+.pokeball-half.top::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(-5vh - 5px); /* Center it within the outer circle */
+  transform: translateX(-50%);
+  width: 10vh;
+  height: 10vh;
+  min-width: 60px;
+  min-height: 60px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  border: 5px solid #222;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+/* Animation Trigger */
+#pokeball-loader.animate .pokeball-half.top {
+  animation: open-top 1.2s forwards ease-in-out;
+}
+
+#pokeball-loader.animate .pokeball-half.bottom {
+  animation: open-bottom 1.2s forwards ease-in-out;
+}
+
+@keyframes open-top {
+  0%, 40% { transform: translateY(0); } /* Pause at the start */
+  100% { transform: translateY(-100%); }
+}
+
+@keyframes open-bottom {
+  0%, 40% { transform: translateY(0); } /* Pause at the start */
+  100% { transform: translateY(100%); }
+}
+
+
+.codemon-card {
+  /* Added a backdrop blur for a frosted glass effect */
+  @apply rounded-2xl shadow-card p-4 bg-slate-900/80 border border-slate-800 backdrop-blur-sm;
 }
 
 .badge {
@@ -19,3 +114,62 @@ html, body, #root {
 .rank-specialist { @apply text-emerald-300; }
 .rank-pupil { @apply text-lime-300; }
 .rank-newbie { @apply text-slate-300; }
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: rgba(15, 23, 42, 0.95); /* Semi-transparent slate-950 */
+}
+
+/* New style for the pikachu spinner div */
+.pikachu-spinner {
+  width: 120px;
+  height: 112px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated; /* Ensures the pixel art style is maintained */
+}
+
+.image-pixelated {
+  image-rendering: pixelated;
+}
+
+/* Pokéball Button Styles */
+.pokeball-button {
+  @apply relative flex items-center justify-center w-12 h-12 rounded-full cursor-pointer transition-transform duration-200;
+  background: linear-gradient(to bottom, #ee1515 0%, #ee1515 48%, #222 48%, #222 52%, white 52%, white 100%);
+  border: 3px solid #222;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.pokeball-button::before {
+  content: '';
+  @apply absolute w-5 h-5 bg-white rounded-full;
+  border: 3px solid #222;
+  z-index: 10;
+}
+
+.pokeball-button svg {
+  @apply w-6 h-6 text-slate-800 relative;
+  z-index: 20;
+  filter: drop-shadow(0 0 1px white);
+}
+
+.pokeball-button:hover {
+  transform: scale(1.1) rotate(15deg);
+}
+
+.pokeball-button:active {
+  transform: scale(0.95) rotate(0deg);
+}
+
+h1.font-pokemon {
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
