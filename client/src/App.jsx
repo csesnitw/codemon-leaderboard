@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8787/api';
+// IMPORTANT: Replace this with your actual Render.com backend URL
+const API_URL = 'https://codemon-leaderboard.onrender.com';
 
 function rankClass(rank) {
   if (!rank) return 'text-slate-400';
@@ -14,34 +15,39 @@ function rankClass(rank) {
 }
 
 export default function App() {
-  const [contestIds, setContestIds] = useState(); // Example contest IDs
+  const [contestIds, setContestIds] = useState();
   const [status, setStatus] = useState('idle');
   const [leaderboard, setLeaderboard] = useState([]);
   const [contestHeaders, setContestHeaders] = useState([]);
+  const [error, setError] = useState('');
 
   const fetchLeaderboard = async () => {
     if (!contestIds.trim()) return;
     setStatus('loading');
+    setError('');
     setLeaderboard([]);
     setContestHeaders([]);
+
     try {
-      const response = await axios.get(`${API_URL}/multiconteststandings`, {
+      const response = await axios.get(`${API_URL}/api/multiconteststandings`, {
         params: { contestIds: contestIds.trim() }
       });
+
       if (response.data.status === 'OK') {
         setLeaderboard(response.data.result.leaderboard);
-        setContestHeaders(response.data.result.problems); // Using 'problems' to carry contest IDs
+        setContestHeaders(response.data.result.problems);
         setStatus('success');
       } else {
         setStatus('error');
+        setError(response.data.comment || 'An unknown error occurred.');
       }
-    } catch (error) {
-      console.error("Failed to fetch leaderboard:", error);
+    } catch (err) {
+      console.error("Failed to fetch leaderboard:", err);
       setStatus('error');
+      setError(err.message || 'Failed to connect to the server.');
     }
   };
-  
-  // Fetch on initial load
+
   useEffect(() => {
     fetchLeaderboard();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,8 +133,11 @@ export default function App() {
               </tbody>
             </table>
           </div>
-          {leaderboard.length === 0 && status !== 'loading' && (
-            <p className="text-slate-400 text-sm mt-4">No data available. Enter contest IDs and click <b>Refresh</b>.</p>
+          {status === 'error' && (
+            <p className="text-red-400 text-sm mt-4">Error: {error}</p>
+          )}
+          {leaderboard.length === 0 && status === 'success' && (
+            <p className="text-slate-400 text-sm mt-4">No data available for the given contest IDs.</p>
           )}
         </section>
       </main>
