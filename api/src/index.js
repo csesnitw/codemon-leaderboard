@@ -63,12 +63,14 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
     if (row.points > 0) {
       if (row.rank <= 30) baseScore = 31 - row.rank;
       
-      row.problemResults.forEach((pr, index) => {
-        const firstAc = firstAcByProblem.get(index);
-        if (pr.points > 0 && firstAc && firstAc.handle === handle && firstAc.time === pr.bestSubmissionTimeSeconds) {
-          firstAcBonus += 2;
-        }
-      });
+      if (contestId !== '631207') {
+        row.problemResults.forEach((pr, index) => {
+          const firstAc = firstAcByProblem.get(index);
+          if (pr.points > 0 && firstAc && firstAc.handle === handle && firstAc.time === pr.bestSubmissionTimeSeconds) {
+            firstAcBonus += 2;
+          }
+        });
+      }
     }
 
     const rawScore = baseScore + firstAcBonus;
@@ -211,7 +213,15 @@ app.get('/api/multiconteststandings', async (req, res) => {
       .map(([handle, data]) => ({ handle, ...data }))
       .sort((a, b) => b.score - a.score || a.penalty - b.penalty);
 
-    res.json({ status: 'OK', result: { leaderboard, problems: ids } });
+    const contestDetails = ids.map(id => {
+        const contestData = allRawContestData.find(data => data.contest.id.toString() === id);
+        return {
+            id,
+            name: contestData ? contestData.contest.name : `Contest ${id}`
+        };
+    });
+
+    res.json({ status: 'OK', result: { leaderboard, problems: contestDetails } });
   } catch (err) {
     res.status(500).json({ status: 'FAILED', comment: err.message });
   }

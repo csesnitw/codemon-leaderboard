@@ -24,7 +24,7 @@ function rankClass(rank) {
 }
 
 export default function App() {
-  const [contestIds, setContestIds] = useState('');
+  const [contestIds, setContestIds] = useState('631207');
   const [status, setStatus] = useState('loading');
   const [leaderboard, setLeaderboard] = useState([]);
   const [contestHeaders, setContestHeaders] = useState([]);
@@ -79,7 +79,7 @@ export default function App() {
   };
 
   const headers = useMemo(() => {
-    return ['Rank', 'Trainer', 'Total Score', ...contestHeaders];
+    return ['Sl. No', 'Trainer', 'Total Score', ...contestHeaders.map(h => h.name)];
   }, [contestHeaders]);
 
   if (status === 'loading') {
@@ -91,9 +91,15 @@ export default function App() {
       <header className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center gap-4">
           <div className="flex-1 text-center md:text-left">
-            <h1 className="text-4xl font-pokemon tracking-wider text-amber-400">
-              CodeMon <sub className="text-sm text-slate-400">by CSES</sub>
-            </h1>
+          <h1 className="text-4xl font-pokemon tracking-wider text-amber-400">
+            CodeMon&nbsp;  
+            <sub className="text-sm text-slate-400">
+            <a href="https://csesnitw.in" target="_blank" rel="noopener noreferrer">
+              <span className="text-white">by CSE</span><span className="text-csesBlue">S</span>
+            </a>
+            </sub>
+          </h1>
+
             <p className="text-sm text-slate-400">Track streaks across multiple contests!</p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
@@ -130,64 +136,72 @@ export default function App() {
             <p className="mt-2 font-mono bg-red-900/70 p-2 rounded">{error}</p>
           </div>
         ) : (
-          <section className="codemon-card">
-            <h2 className="text-lg font-semibold mb-4">Cumulative Leaderboard</h2>
-            <div className="overflow-auto rounded-xl border border-slate-800">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-900/70">
-                  <tr>
-                    {headers.map((h, i) => (
-                      <th key={i} className="px-3 py-2 text-left font-semibold border-b border-slate-800">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((row, index) => (
-                    <tr key={row.handle} className="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-800/30 transition">
-                      <td className={`px-3 py-2 font-semibold ${rankClass(index + 1)}`}>{index + 1}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={index < 3 ? PODIUM_POKEMON[index] : POKEBALL_ICON}
-                            alt="Trainer Icon"
-                            className="w-10 h-10 image-pixelated"
-                          />
-                          <div>
-                            <div className="font-medium">{row.handle}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 font-bold">{row.score.toFixed(2)}</td>
-                      {contestHeaders.map(contestId => {
-                        const contest = row.contests[contestId];
-                        return (
-                          <td key={contestId} className="px-3 py-2">
-                            {contest ? (
-                              <div className="text-xs">
-                                <div>Score: <span className="font-semibold">{contest.score.toFixed(2)}</span></div>
-                                <div className="text-slate-400 text-[10px]">
-                                  ({contest.baseScore?.toFixed(2) || '0.00'}
-                                  +{contest.firstAcBonus?.toFixed(2) || '0.00'})
-                                  x{((contest.streakBonus / (contest.baseScore + contest.firstAcBonus)) + 1).toFixed(2) || '1.00'}
-                                </div>
-                                <div>Rank: <span className={rankClass(contest.rank)}>{contest.rank || 'N/A'}</span></div>
-                                <div>Streak: <span className="text-amber-300">{contest.streak || 0}x</span></div>
-                              </div>
-                            ) : (
-                              <span className="text-slate-500">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <>
+            <div className="bg-slate-800/50 border border-slate-700 text-slate-300 p-4 rounded-xl text-sm">
+              <p className="font-bold text-base text-amber-400">Note on the First Codemon Contest (631207):</p>
+              <p className="mt-2">
+                During the first Codemon contest, Codeforces experienced prolonged 403 errors that disrupted submission timings and affected first-AC detection. To ensure fairness, we have decided that for this contest only, the usual +2 first-AC bonus will not be applied. Participants with identical contest scores will be assigned the same rank and awarded the same leaderboard points, with time not being considered as a tiebreaker for this round.
+              </p>
             </div>
-            {leaderboard.length === 0 && status === 'success' && (
-              <p className="text-slate-400 text-center text-sm mt-4">No data available for the given contest IDs. Try different IDs.</p>
-            )}
-          </section>
+            <section className="codemon-card">
+              <h2 className="text-lg font-semibold mb-4">Cumulative Leaderboard</h2>
+              <div className="overflow-auto rounded-xl border border-slate-800">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-900/70">
+                    <tr>
+                      {headers.map((h, i) => (
+                        <th key={i} className="px-3 py-2 text-left font-semibold border-b border-slate-800">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row, index) => (
+                      <tr key={row.handle} className="odd:bg-slate-900/30 even:bg-slate-900/10 hover:bg-slate-800/30 transition">
+                        <td className={`px-3 py-2 font-semibold ${rankClass(index + 1)}`}>{index + 1}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={index < 3 ? PODIUM_POKEMON[index] : POKEBALL_ICON}
+                              alt="Trainer Icon"
+                              className="w-10 h-10 image-pixelated"
+                            />
+                            <div>
+                              <div className="font-medium">{row.handle}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 font-bold">{row.score.toFixed(2)}</td>
+                        {contestHeaders.map(contestHeader => {
+                          const contest = row.contests[contestHeader.id];
+                          return (
+                            <td key={contestHeader.id} className="px-3 py-2">
+                              {contest ? (
+                                <div className="text-xs">
+                                  <div>Score: <span className="font-semibold">{contest.score.toFixed(2)}</span></div>
+                                  <div className="text-slate-400 text-[10px]">
+                                    ({contest.baseScore?.toFixed(2) || '0.00'}
+                                    +{contest.firstAcBonus?.toFixed(2) || '0.00'})
+                                    x{((contest.streakBonus / (contest.baseScore + contest.firstAcBonus)) + 1).toFixed(2) || '1.00'}
+                                  </div>
+                                  <div>Rank: <span className={rankClass(contest.rank)}>{contest.rank || 'N/A'}</span></div>
+                                  <div>Streak: <span className="text-amber-300">{contest.streak || 0}x</span></div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-500">—</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {leaderboard.length === 0 && status === 'success' && (
+                <p className="text-slate-400 text-center text-sm mt-4">No data available for the given contest IDs. Try different IDs.</p>
+              )}
+            </section>
+          </>
         )}
       </main>
       <footer className="text-center py-4 text-slate-400 text-sm">

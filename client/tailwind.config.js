@@ -15,6 +15,7 @@ export default {
         'rank-specialist': '#6ee7b7', // Emerald
         'rank-pupil': '#a3e635', // Lime
         'rank-newbie': '#d1d5db', // Gray
+        'csesBlue': '#02B5C7',
       }
     },
   },
