@@ -16,6 +16,13 @@ export default {
         'rank-pupil': '#a3e635', // Lime
         'rank-newbie': '#d1d5db', // Gray
         'csesBlue': '#02B5C7',
+        // Theme colors
+        'primary': 'var(--color-primary)',
+        'secondary': 'var(--color-secondary)',
+        'background': 'var(--color-background)',
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
+        'accent': 'var(--color-accent)',
       }
     },
   },
