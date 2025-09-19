@@ -24,7 +24,6 @@ function rankClass(rank) {
 }
 
 export default function App() {
-  const [contestIds, setContestIds] = useState('631207,631208');
   const [status, setStatus] = useState('loading');
   const [leaderboard, setLeaderboard] = useState([]);
   const [contestHeaders, setContestHeaders] = useState([]);
@@ -64,7 +63,8 @@ export default function App() {
   }, [lastScrollY, theme]);
 
 
-  const fetchLeaderboard = async (idsToFetch) => {
+  const fetchLeaderboard = async () => {
+    const idsToFetch = '631207,631208';
     if (!idsToFetch || !idsToFetch.trim()) {
       setStatus('loading');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -104,12 +104,12 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchLeaderboard(contestIds);
+    fetchLeaderboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefresh = () => {
-    fetchLeaderboard(contestIds);
+    fetchLeaderboard();
   };
 
   const headers = useMemo(() => {
@@ -141,13 +141,6 @@ export default function App() {
               <div className="pokemon gengar"></div>
               <div className="pokemon clefable"></div>
             </button>
-            <input
-              className="textbox"
-              value={contestIds}
-              onChange={e => setContestIds(e.target.value)}
-              placeholder="Enter contest IDs"
-              onKeyUp={(e) => e.key === 'Enter' && handleRefresh()}
-            />
             <button
               onClick={handleRefresh}
               className="pokeball-button"
