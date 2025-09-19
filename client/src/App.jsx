@@ -24,7 +24,7 @@ function rankClass(rank) {
 }
 
 export default function App() {
-  const [contestIds, setContestIds] = useState('631207');
+  const [contestIds, setContestIds] = useState('631207,631208');
   const [status, setStatus] = useState('loading');
   const [leaderboard, setLeaderboard] = useState([]);
   const [contestHeaders, setContestHeaders] = useState([]);
@@ -172,11 +172,19 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div className="note-card">
-              <p className="font-bold text-base text-amber-400">Note on the First Codemon Contest (631207):</p>
-              <p className="mt-2 text-secondary">
-                During the first Codemon contest, Codeforces experienced prolonged 403 errors that disrupted submission timings and affected first-AC detection. To ensure fairness, we have decided that for this contest only, the usual +2 first-AC bonus will not be applied. Participants with identical contest scores will be assigned the same rank and awarded the same leaderboard points, with time not being considered as a tiebreaker for this round.
-              </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="note-card">
+                <p className="font-bold text-base text-amber-400">Note on Codemon Contest 1 (CodeForces):</p>
+                <p className="mt-2 text-secondary">
+                  CodeMon Contest 1 was held on CodeForces. Due to technical issues during the contest, the first-AC bonus was disabled, and ranks were determined by score only.
+                </p>
+              </div>
+              <div className="note-card">
+                <p className="font-bold text-base text-amber-400">Note on Codemon Contest 2 (HackerRank):</p>
+                <p className="mt-2 text-secondary">
+                  CodeMon Contest 2 was held on HackerRank. All participants receive a base score of 5 points. Streak bonuses are applied based on participation in previous contests.
+                </p>
+              </div>
             </div>
             <section className="codemon-card">
               <h2 className="text-lg font-semibold mb-4 text-primary">Cumulative Leaderboard</h2>
