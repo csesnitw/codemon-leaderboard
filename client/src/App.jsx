@@ -64,7 +64,7 @@ export default function App() {
 
 
   const fetchLeaderboard = async () => {
-    const idsToFetch = '631207,631208';
+    const idsToFetch = '631207,631208,631209';
     if (!idsToFetch || !idsToFetch.trim()) {
       setStatus('loading');
       await new Promise(resolve => setTimeout(resolve, 1000));

@@ -43,6 +43,7 @@ const parseTxt = (filename) => {
 
 const codemon1Leaderboard = parseTxt('leaderboard-codemon1.txt');
 const codemon2Leaderboard = parseTxt('leaderboard-codemon2.txt');
+const codemon3Leaderboard = parseTxt('leaderboard-codemon3.txt');
 
 const parseMapping = () => {
     const filePath = path.join(__dirname, 'mapping.txt');
@@ -97,6 +98,17 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
             baseScore = 5;
         } else if (contestId === '631207') { // Codemon 1
             if (row.rank <= 30) baseScore = 31 - row.rank;
+        } else if (contestId === '631209') { // Codemon 3
+            if (row.rank <= 30) baseScore = 31 - row.rank; 
+            const firstAcBonuses = {
+                'rupenderyadav55': 4,
+                'rajzvx': 4,
+                'Alok2122P': 2,
+                'SR_24MM': 2
+            };
+            if (firstAcBonuses[handle]) {
+                firstAcBonus = firstAcBonuses[handle];
+            }
         } else { // Other CF contests
             if (row.points > 0) {
                 if (row.rank <= 30) baseScore = 31 - row.rank;
@@ -188,6 +200,19 @@ async function getRawStandings(contestId) {
             problemResults: []
         }));
         const fakeStandings = { contest: { id: 631208, name: 'Codemon Contest 2' }, problems: [], rows };
+        contestCache.set(contestId, fakeStandings);
+        return fakeStandings;
+    }
+    
+    if (contestId === '631209') {
+        const rows = codemon3Leaderboard.map(entry => ({
+            party: { members: [{ handle: entry.username }] },
+            rank: entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0, 
+            penalty: 0,
+            problemResults: []
+        }));
+        const fakeStandings = { contest: { id: 631209, name: 'Codemon Contest 3' }, problems: [], rows };
         contestCache.set(contestId, fakeStandings);
         return fakeStandings;
     }
