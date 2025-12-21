@@ -12,15 +12,12 @@ const PORT = process.env.PORT || 8787;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '30000', 10);
 
-// ---- Codeforces API Credentials ----
 const CF_API_KEY = process.env.CF_API_KEY;
 const CF_API_SECRET = process.env.CF_API_SECRET;
 
-// --- In-memory store for streaks and contest data ---
 const userContestHistory = new Map();
-const contestCache = new Map(); // Caches raw contest data
+const contestCache = new Map();
 
-// --- Parse local data files ---
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -30,7 +27,7 @@ const __dirname = dirname(__filename);
 const parseTxt = (filename) => {
     const filePath = join(__dirname, filename);
     if (!fs.existsSync(filePath)) {
-        console.error(`File not found: ${filePath}`); // Added for debugging
+        console.error(`File not found: ${filePath}`);
         return [];
     }
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -44,11 +41,12 @@ const parseTxt = (filename) => {
 const codemon1Leaderboard = parseTxt('leaderboard-codemon1.txt');
 const codemon2Leaderboard = parseTxt('leaderboard-codemon2.txt');
 const codemon3Leaderboard = parseTxt('leaderboard-codemon3.txt');
+const codemon4Leaderboard = parseTxt('leaderboard-codemon4.txt');
 
 const parseMapping = () => {
     const filePath = path.join(__dirname, 'mapping.txt');
     if (!fs.existsSync(filePath)) {
-        console.error(`Mapping file not found: ${filePath}`); // For debugging
+        console.error(`Mapping file not found: ${filePath}`);
         return {};
     }
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -56,7 +54,7 @@ const parseMapping = () => {
     const mapping = {};
     lines.forEach(line => {
         const [cf, hr] = line.split(',');
-        if (cf && hr) { // Ensure both handles exist
+        if (cf && hr) {
             mapping[hr.trim()] = cf.trim();
         }
     });
@@ -94,11 +92,12 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
         let baseScore = 0;
         let firstAcBonus = 0;
 
-        if (contestId === '631208') { // Codemon 2
+        if (contestId === '631208') { // Codemon 2 (HR)
+            // Participation: 5 points for everyone
             baseScore = 5;
-        } else if (contestId === '631207') { // Codemon 1
+        } else if (contestId === '631207') { // Codemon 1 (CF)
             if (row.rank <= 30) baseScore = 31 - row.rank;
-        } else if (contestId === '631209') { // Codemon 3
+        } else if (contestId === '631209') { // Codemon 3 (CF)
             if (row.rank <= 30) baseScore = 31 - row.rank; 
             const firstAcBonuses = {
                 'rupenderyadav55': 4,
@@ -109,7 +108,18 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
             if (firstAcBonuses[handle]) {
                 firstAcBonus = firstAcBonuses[handle];
             }
-        } else { // Other CF contests
+        } else if (contestId === '631210') { // Codemon 4 (HR)
+            if (row.rank <= 30) baseScore = 31 - row.rank;
+            const firstAcBonuses = {
+                'rajzvx': 4,           // rajbanazvx
+                'SR_24MM': 2,          // mithintisairush1
+                'SamyakJain092006': 2, // samyakjain092006
+                'subhamjyotimaha1': 2  // subhamjyotimaha1
+            };
+            if (firstAcBonuses[handle]) {
+                firstAcBonus = firstAcBonuses[handle];
+            }
+        } else { 
             if (row.points > 0) {
                 if (row.rank <= 30) baseScore = 31 - row.rank;
                 if (row.problemResults) {
@@ -157,6 +167,7 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
     });
 
     finalScoredRows.sort((a, b) => b.customScore - a.customScore || a.penalty - b.penalty);
+    
     let currentRank = 0, lastScore = -1, lastPenalty = -1;
     finalScoredRows.forEach((row, index) => {
         if (row.customScore !== lastScore || row.penalty !== lastPenalty) {
@@ -182,7 +193,7 @@ async function getRawStandings(contestId) {
         const rows = codemon1Leaderboard.map(entry => ({
             party: { members: [{ handle: entry.username }] },
             rank: entry.rank,
-            points: 31 - entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0, 
             penalty: 0,
             problemResults: []
         }));
@@ -217,6 +228,19 @@ async function getRawStandings(contestId) {
         return fakeStandings;
     }
 
+    if (contestId === '631210') {
+        const rows = codemon4Leaderboard.map(entry => ({
+            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
+            rank: entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0,
+            penalty: 0,
+            problemResults: []
+        }));
+        const fakeStandings = { contest: { id: 631210, name: 'Codemon Contest 4' }, problems: [], rows };
+        contestCache.set(contestId, fakeStandings);
+        return fakeStandings;
+    }
+
     const data = await fetchStandings({ contestId, showUnofficial: 'false' });
     if (data.status === 'OK') {
         contestCache.set(contestId, data.result);
@@ -224,7 +248,6 @@ async function getRawStandings(contestId) {
     }
     throw new Error(data.comment || `Failed to fetch standings for contest ${contestId}`);
 }
-
 
 app.get('/api/multiconteststandings', async (req, res) => {
     const { contestIds } = req.query;
@@ -267,7 +290,6 @@ app.get('/api/multiconteststandings', async (req, res) => {
         res.status(500).json({ status: 'FAILED', comment: err.message });
     }
 });
-
 
 function generateApiSig(methodName, params) {
     const sortedParams = Object.keys(params).sort().map(key => `${key}=${encodeURIComponent(params[key])}`).join('&');

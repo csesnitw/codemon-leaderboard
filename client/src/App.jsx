@@ -4,11 +4,10 @@ import LoadingSpinner from './LoadingSpinner';
 
 const API_URL = 'https://codemon-leaderboard.onrender.com';
 
-// URLs for our top 3 Pokémon sprites
 const PODIUM_POKEMON = [
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png', // Charizard
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png', // Blastoise
-  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png'  // Venusaur
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png', 
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png', 
+  'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png'  
 ];
 
 const POKEBALL_ICON = 'https://www.freeiconspng.com/uploads/pokeball-icon-3.png';
@@ -42,10 +41,8 @@ export default function App() {
   const controlNavbar = () => {
     if (typeof window !== 'undefined') {
       if (window.scrollY > lastScrollY) {
-        // if scroll down hide the navbar
         setHeaderVisible(false);
       } else {
-        // if scroll up show the navbar
         setHeaderVisible(true);
       }
       setLastScrollY(window.scrollY);
@@ -64,7 +61,7 @@ export default function App() {
 
 
   const fetchLeaderboard = async () => {
-    const idsToFetch = '631207,631208,631209';
+    const idsToFetch = '631207,631208,631209,631210';
     if (!idsToFetch || !idsToFetch.trim()) {
       setStatus('loading');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -105,7 +102,6 @@ export default function App() {
 
   useEffect(() => {
     fetchLeaderboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefresh = () => {
