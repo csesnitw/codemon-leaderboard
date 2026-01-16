@@ -42,6 +42,7 @@ const codemon1Leaderboard = parseTxt('leaderboard-codemon1.txt');
 const codemon2Leaderboard = parseTxt('leaderboard-codemon2.txt');
 const codemon3Leaderboard = parseTxt('leaderboard-codemon3.txt');
 const codemon4Leaderboard = parseTxt('leaderboard-codemon4.txt');
+const codemon5Leaderboard = parseTxt('leaderboard-codemon5.txt');
 
 const parseMapping = () => {
     const filePath = path.join(__dirname, 'mapping.txt');
@@ -119,6 +120,17 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
             if (firstAcBonuses[handle]) {
                 firstAcBonus = firstAcBonuses[handle];
             }
+        } else if (contestId === '631211') { // Codemon 5 (HR)
+             if (row.rank <= 30) baseScore = 31 - row.rank;
+             const firstAcBonuses = {
+                'Charan_Harsha': 4,
+                'rupenderyadav55': 2,
+                'ammar_101': 2,
+                'krispatel2702': 2
+             };
+             if (firstAcBonuses[handle]) {
+                firstAcBonus = firstAcBonuses[handle];
+             }
         } else { 
             if (row.points > 0) {
                 if (row.rank <= 30) baseScore = 31 - row.rank;
@@ -237,6 +249,19 @@ async function getRawStandings(contestId) {
             problemResults: []
         }));
         const fakeStandings = { contest: { id: 631210, name: 'Codemon Contest 4' }, problems: [], rows };
+        contestCache.set(contestId, fakeStandings);
+        return fakeStandings;
+    }
+
+    if (contestId === '631211') {
+        const rows = codemon5Leaderboard.map(entry => ({
+            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
+            rank: entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0,
+            penalty: 0,
+            problemResults: []
+        }));
+        const fakeStandings = { contest: { id: 631211, name: 'Codemon Contest 5' }, problems: [], rows };
         contestCache.set(contestId, fakeStandings);
         return fakeStandings;
     }
