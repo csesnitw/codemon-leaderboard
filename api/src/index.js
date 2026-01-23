@@ -43,6 +43,7 @@ const codemon2Leaderboard = parseTxt('leaderboard-codemon2.txt');
 const codemon3Leaderboard = parseTxt('leaderboard-codemon3.txt');
 const codemon4Leaderboard = parseTxt('leaderboard-codemon4.txt');
 const codemon5Leaderboard = parseTxt('leaderboard-codemon5.txt');
+const codemon6Leaderboard = parseTxt('leaderboard-codemon6.txt');
 
 const parseMapping = () => {
     const filePath = path.join(__dirname, 'mapping.txt');
@@ -131,6 +132,16 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
              if (firstAcBonuses[handle]) {
                 firstAcBonus = firstAcBonuses[handle];
              }
+        } else if (contestId === '631212'){
+            if (row.rank <= 20) baseScore = 31 - row.rank;
+                const firstAcBonuses = {
+                'rupenderyadav55': 4,
+                'AbhinavChalla': 2,
+                'SOHAM_MAHAJAN': 2,
+            };
+            if (firstAcBonuses[handle]) {
+                firstAcBonus = firstAcBonuses[handle];
+            }
         } else { 
             if (row.points > 0) {
                 if (row.rank <= 30) baseScore = 31 - row.rank;
@@ -264,6 +275,19 @@ async function getRawStandings(contestId) {
         const fakeStandings = { contest: { id: 631211, name: 'Codemon Contest 5' }, problems: [], rows };
         contestCache.set(contestId, fakeStandings);
         return fakeStandings;
+    }
+
+    if (contestId === '631212') {
+    const rows = codemon6Leaderboard.map(entry => ({
+        party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
+        rank: entry.rank,
+        points: entry.rank <= 30 ? 31 - entry.rank : 0,
+        penalty: 0,
+        problemResults: []
+    }));
+    const fakeStandings = { contest: { id: 631212, name: 'Codemon Contest 6' }, problems: [], rows };
+    contestCache.set(contestId, fakeStandings);
+    return fakeStandings;
     }
 
     const data = await fetchStandings({ contestId, showUnofficial: 'false' });
