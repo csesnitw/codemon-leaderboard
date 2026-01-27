@@ -132,6 +132,16 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
              if (firstAcBonuses[handle]) {
                 firstAcBonus = firstAcBonuses[handle];
              }
+
+             const manualBaseScores = {
+                 'SiddhantSangaonkar': 14.9,
+                 'SamyakJain092006': 16,
+                 'HailOtg': 22.36
+             };
+             if (manualBaseScores[handle]) {
+                 baseScore = manualBaseScores[handle];
+             }
+
         } else if (contestId === '631212'){
             if (row.rank <= 20) baseScore = 31 - row.rank;
                 const firstAcBonuses = {
@@ -272,6 +282,27 @@ async function getRawStandings(contestId) {
             penalty: 0,
             problemResults: []
         }));
+        rows.push({
+            party: { members: [{ handle: 'SiddhantSangaonkar' }] },
+            rank: 999,
+            points: 0,
+            penalty: 0,
+            problemResults: []
+        });
+        rows.push({
+            party: { members: [{ handle: 'SamyakJain092006' }] },
+            rank: 999,
+            points: 0,
+            penalty: 0,
+            problemResults: []
+        });
+        rows.push({
+            party: { members: [{ handle: 'HailOtg' }] },
+            rank: 999,
+            points: 0,
+            penalty: 0,
+            problemResults: []
+        });
         const fakeStandings = { contest: { id: 631211, name: 'Codemon Contest 5' }, problems: [], rows };
         contestCache.set(contestId, fakeStandings);
         return fakeStandings;
