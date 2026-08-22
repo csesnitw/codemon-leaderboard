@@ -11,6 +11,11 @@ on:
         description: 'Contest Name'
         required: true
         type: string
+      group_id:
+        description: 'Codeforces Group ID (for mashup/group contests, leave empty for public rounds)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   fetch-and-deploy:
@@ -36,8 +41,19 @@ jobs:
           pip install requests
       
       - name: Fetch contest standings
+        env:
+          CODEFORCES_API_KEY: ${{ secrets.CODEFORCES_API_KEY }}
+          CODEFORCES_API_SECRET: ${{ secrets.CODEFORCES_API_SECRET }}
         run: |
-          python scripts/fetch_standings.py ${{ github.event.inputs.contest_id }} "${{ github.event.inputs.contest_name }}"
+          ARGS="${{ github.event.inputs.contest_id }}"
+          if [ -n "${{ github.event.inputs.group_id }}" ]; then
+            ARGS="$ARGS --group ${{ github.event.inputs.group_id }}"
+          fi
+          python scripts/fetch_standings.py $ARGS "${{ github.event.inputs.contest_name }}"
+      
+      - name: Compute scores and leaderboard
+        run: |
+          python scripts/compute_scores.py
       
       - name: Configure Git
         run: |
