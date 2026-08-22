@@ -89,7 +89,6 @@ export default function App() {
       });
 
       const [response] = await Promise.all([apiPromise, timerPromise]);
-
       if (response.data.status === 'OK') {
         setLeaderboard(response.data.result.leaderboard);
         setContestHeaders(response.data.result.problems);

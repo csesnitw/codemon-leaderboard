@@ -325,10 +325,9 @@ async function getRawStandings(contestId) {
     }
 
     const data = await fetchStandings({
-        contestId,
-        groupCode: 'nmgprSAgxj'
+        contestId
     });
-    
+
     if (data.status === 'OK') {
         contestCache.set(contestId, data.result);
         return data.result;
@@ -355,7 +354,7 @@ app.get('/api/multiconteststandings', async (req, res) => {
             const contestData = processedContests[contestId];
             if (!contestData) continue;
             for (const row of contestData.rows) {
-                const handle = row.party.members[0].handle;
+                const handle = row.party.members[0].name ? row.party.members[0].name : row.party.members[0].handle;
                 if (!cumulativeScores.has(handle)) cumulativeScores.set(handle, { score: 0, penalty: 0, contests: {} });
                 const userEntry = cumulativeScores.get(handle);
                 userEntry.score += row.customScore;
