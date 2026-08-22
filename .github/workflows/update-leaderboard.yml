@@ -44,12 +44,14 @@ jobs:
         env:
           CODEFORCES_API_KEY: ${{ secrets.CODEFORCES_API_KEY }}
           CODEFORCES_API_SECRET: ${{ secrets.CODEFORCES_API_SECRET }}
+          CF_CONTEST_ID: ${{ github.event.inputs.contest_id }}
+          CF_CONTEST_NAME: ${{ github.event.inputs.contest_name }}
+          CF_GROUP_ID: ${{ github.event.inputs.group_id }}
         run: |
-          ARGS="${{ github.event.inputs.contest_id }}"
-          if [ -n "${{ github.event.inputs.group_id }}" ]; then
-            ARGS="$ARGS --group ${{ github.event.inputs.group_id }}"
-          fi
-          python scripts/fetch_standings.py $ARGS "${{ github.event.inputs.contest_name }}"
+          python scripts/fetch_standings.py \
+            --contest-id "$CF_CONTEST_ID" \
+            --contest-name "$CF_CONTEST_NAME" \
+            ${CF_GROUP_ID:+--group "$CF_GROUP_ID"}
       
       - name: Compute scores and leaderboard
         run: |

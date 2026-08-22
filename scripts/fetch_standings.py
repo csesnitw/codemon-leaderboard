@@ -15,8 +15,12 @@ credentials generated at https://codeforces.com/settings/api:
 
 Usage:
     python fetch_standings.py <contest_id> [contest_name]
-    python fetch_standings.py <contest_id> --group GROUP_ID [contest_name]
+    python fetch_standings.py <contest_id> [contest_name] --group GROUP_ID
+    python fetch_standings.py --contest-id ID [--contest-name NAME] --group GROUP_ID
     python fetch_standings.py --list
+
+Note: prefer flag form (--contest-id/--contest-name) in scripts; combining
+--group between the two positional arguments trips an argparse limitation.
 """
 
 import argparse
@@ -181,10 +185,22 @@ def save_index(index):
         json.dump(index, f, indent=2)
 
 
+def clean_name(name):
+    if name is None:
+        return None
+    return name.strip().strip('"').strip("'").strip()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Fetch Codemon contest standings.')
-    parser.add_argument('contest_id', type=int, nargs='?', help='Codeforces contest ID')
-    parser.add_argument('contest_name', nargs='?', help='Display name for the contest')
+    parser.add_argument('contest_id_pos', type=int, nargs='?', metavar='contest_id',
+                        help='Codeforces contest ID (positional form)')
+    parser.add_argument('contest_name_pos', nargs='?', metavar='contest_name',
+                        help='Display name for the contest (positional form)')
+    parser.add_argument('--contest-id', dest='contest_id_opt', type=int,
+                        help='Codeforces contest ID (flag form, preferred in scripts)')
+    parser.add_argument('--contest-name', dest='contest_name_opt',
+                        help='Display name for the contest (flag form)')
     parser.add_argument('--group', dest='group_id', help='Codeforces group ID for mashup contests')
     parser.add_argument('--list', action='store_true', help='List recent public contests')
     args = parser.parse_args()
@@ -199,21 +215,27 @@ def main():
             sys.exit(1)
         return
 
-    if args.contest_id is None:
+    contest_id = args.contest_id_pos if args.contest_id_pos is not None else args.contest_id_opt
+    raw_name = args.contest_name_pos if args.contest_name_pos is not None else args.contest_name_opt
+    if contest_id is None:
         parser.print_usage()
         sys.exit(1)
 
-    contest_id = args.contest_id
+    group_id = args.group_id.strip() if args.group_id else None
+    contest_name = clean_name(raw_name)
+
+    print(f"Invocation: contest_id={contest_id} "
+          f"group={group_id or '-'} name='{contest_name or '-'}'")
 
     print(f"Fetching standings for contest {contest_id}"
-          + (f" (group {args.group_id})" if args.group_id else "") + "...")
+          + (f" (group {group_id})" if group_id else "") + "...")
     try:
-        if args.group_id:
-            result = fetch_group_contest(args.group_id, contest_id)
+        if group_id:
+            result = fetch_group_contest(group_id, contest_id)
         else:
             result = fetch_contest(contest_id)
 
-        contest_json = build_contest_json(contest_id, args.contest_name, result)
+        contest_json = build_contest_json(contest_id, contest_name, result)
         print(f"Fetched {len(contest_json['standings'])} participants")
 
         os.makedirs(CONTESTS_DIR, exist_ok=True)
