@@ -1,0 +1,86 @@
+name: Update Leaderboard
+
+on:
+  workflow_dispatch:
+    inputs:
+      contest_id:
+        description: 'Codeforces Contest ID'
+        required: true
+        type: string
+      contest_name:
+        description: 'Contest Name'
+        required: true
+        type: string
+      group_id:
+        description: 'Codeforces Group ID (for mashup/group contests, leave empty for public rounds)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  fetch-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests
+      
+      - name: Fetch contest standings
+        env:
+          CODEFORCES_API_KEY: ${{ secrets.CODEFORCES_API_KEY }}
+          CODEFORCES_API_SECRET: ${{ secrets.CODEFORCES_API_SECRET }}
+          CF_CONTEST_ID: ${{ github.event.inputs.contest_id }}
+          CF_CONTEST_NAME: ${{ github.event.inputs.contest_name }}
+          CF_GROUP_ID: ${{ github.event.inputs.group_id }}
+        run: |
+          python scripts/fetch_standings.py \
+            --contest-id "$CF_CONTEST_ID" \
+            --contest-name "$CF_CONTEST_NAME" \
+            ${CF_GROUP_ID:+--group "$CF_GROUP_ID"}
+      
+      - name: Compute scores and leaderboard
+        run: |
+          python scripts/compute_scores.py
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Commit and push changes
+        run: |
+          git add data/
+          git diff --staged --quiet || git commit -m "Update leaderboard for contest ${{ github.event.inputs.contest_id }}"
+          git push
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -35,3 +35,28 @@ Thumbs.db
 # Docker and misc
 *.pid
 
+# Dependencies
+node_modules/
+venv/
+.env
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
