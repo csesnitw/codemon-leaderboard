@@ -94,6 +94,7 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
         let baseScore = 0;
         let firstAcBonus = 0;
 
+        // TODO: move to file this custom rule chain is fucked
         if (contestId === '631208') { // Codemon 2 (HR)
             // Participation: 5 points for everyone
             baseScore = 5;
@@ -152,6 +153,8 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
             if (firstAcBonuses[handle]) {
                 firstAcBonus = firstAcBonuses[handle];
             }
+        } else if (contestId === '712105') { // codemon s2 cont 1
+            if (row.rank <= 30) baseScore = 31 - row.rank;
         } else { 
             if (row.points > 0) {
                 if (row.rank <= 30) baseScore = 31 - row.rank;
@@ -321,7 +324,11 @@ async function getRawStandings(contestId) {
     return fakeStandings;
     }
 
-    const data = await fetchStandings({ contestId, showUnofficial: 'false' });
+    const data = await fetchStandings({
+        contestId,
+        groupCode: 'nmgprSAgxj'
+    });
+    
     if (data.status === 'OK') {
         contestCache.set(contestId, data.result);
         return data.result;

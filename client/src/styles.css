@@ -208,7 +208,57 @@ h1.font-pokemon {
 }
 
 .header-hidden {
-  top: -120px;
+  top: -160px;
+}
+
+.season-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .season-tabs {
+    justify-content: flex-start;
+  }
+}
+
+.season-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px 6px 8px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid var(--color-border-dark);
+  background: rgba(30, 41, 59, 0.6);
+  color: var(--color-secondary-dark);
+  transition: transform 0.15s, background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.light .season-tab {
+  border-color: var(--color-border-light);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--color-secondary-light);
+}
+
+.season-tab:hover {
+  transform: translateY(-1px);
+}
+
+.season-tab.active {
+  color: #1e293b;
+  border-color: #facc15;
+  background: linear-gradient(180deg, #fde047 0%, #facc15 100%);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.25);
+}
+
+.season-tab-sprite {
+  width: 28px;
+  height: 28px;
 }
 
 .theme-switcher {
