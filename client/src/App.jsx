@@ -4,6 +4,11 @@ import LoadingSpinner from './LoadingSpinner';
 
 const API_URL = 'https://codemon-leaderboard.onrender.com';
 
+const SEASONS = {
+  2: { label: 'Season 2', contestIds: '712105', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+  1: { label: 'Season 1', contestIds: '631207,631208,631209,631210,631211,631212', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png' },
+};
+
 const PODIUM_POKEMON = [
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png', 
   'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png', 
@@ -30,6 +35,7 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const [headerVisible, setHeaderVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [season, setSeason] = useState(2);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -60,8 +66,8 @@ export default function App() {
   }, [lastScrollY, theme]);
 
 
-  const fetchLeaderboard = async () => {
-    const idsToFetch = '631207,631208,631209,631210,631211,631212';
+  const fetchLeaderboard = async (seasonKey = season) => {
+    const idsToFetch = SEASONS[seasonKey].contestIds;
     if (!idsToFetch || !idsToFetch.trim()) {
       setStatus('loading');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -83,7 +89,6 @@ export default function App() {
       });
 
       const [response] = await Promise.all([apiPromise, timerPromise]);
-
       if (response.data.status === 'OK') {
         setLeaderboard(response.data.result.leaderboard);
         setContestHeaders(response.data.result.problems);
@@ -101,11 +106,11 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, []);
+    fetchLeaderboard(season);
+  }, [season]);
 
   const handleRefresh = () => {
-    fetchLeaderboard();
+    fetchLeaderboard(season);
   };
 
   const headers = useMemo(() => {
@@ -131,6 +136,19 @@ export default function App() {
           </h1>
 
             <p className="text-sm text-secondary">Track streaks across multiple contests!</p>
+            <div className="season-tabs" role="tablist">
+              {Object.entries(SEASONS).map(([key, s]) => (
+                <button
+                  key={key}
+                  aria-selected={season == key}
+                  className={`season-tab ${season == key ? 'active' : ''}`}
+                  onClick={() => setSeason(key)}
+                >
+                  <img src={s.sprite} alt="" className="season-tab-sprite image-pixelated" />
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
           <button onClick={toggleTheme} className="theme-switcher">
@@ -161,6 +179,7 @@ export default function App() {
           </div>
         ) : (
           <>
+            {season === '1' && (
             <div className="grid md:grid-cols-2 gap-4">
               <div className="note-card">
                 <p className="font-bold text-base text-amber-400">Note on Codemon Contest 1 (CodeForces):</p>
@@ -175,6 +194,7 @@ export default function App() {
                 </p>
               </div>
             </div>
+            )}
             <section className="codemon-card">
               <h2 className="text-lg font-semibold mb-4 text-primary">Cumulative Leaderboard</h2>
               <div className="overflow-auto rounded-xl border-table">
