@@ -401,6 +401,20 @@ async function fetchStandings(queryParams) {
     }
 }
 
+app.get('/api/announcements', (req, res) => {
+    const filePath = path.join(__dirname, 'announcements.json');
+    if (!fs.existsSync(filePath)) {
+        return res.json({ status: 'OK', result: [] });
+    }
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        res.json({ status: 'OK', result: JSON.parse(content) });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ status: 'FAILED', comment: err.message });
+    }
+});
+
 app.get('/health', (_, res) => res.json({ ok: true }));
 const server = app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
 const wss = new WebSocketServer({ server, path: '/ws' });

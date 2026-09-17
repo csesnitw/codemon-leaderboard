@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "season": "2",
+    "title": "Welcome to CodeMon Season 2!",
+    "date": "2024-10-01",
+    "content": "Season 2 is officially here. Get ready to catch 'em all! The first contest will begin this weekend. Make sure to register on HackerRank.",
+    "imageUrl": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png"
+  },
+  {
+    "id": 2,
+    "season": "1",
+    "title": "Season 1 Results are finalized",
+    "date": "2024-09-15",
+    "content": "The standings for Season 1 have been finalized. Congratulations to our top trainers! You can still view the legacy standings by clicking on the Season 1 tab.",
+    "imageUrl": ""
+  },
+  {
+    "id": 3,
+    "season": "1",
+    "title": "Note on Codemon Contest 1 (CodeForces)",
+    "date": "2024-08-01",
+    "content": "CodeMon Contest 1 was held on CodeForces. Due to technical issues during the contest, the first-AC bonus was disabled, and ranks were determined by score only.",
+    "imageUrl": ""
+  },
+  {
+    "id": 4,
+    "season": "1",
+    "title": "Note on Codemon Contest 2 (HackerRank)",
+    "date": "2024-08-15",
+    "content": "CodeMon Contest 2 was held on HackerRank. All participants receive a base score of 5 points. Streak bonuses are applied based on participation in previous contests.",
+    "imageUrl": ""
+  }
+]
