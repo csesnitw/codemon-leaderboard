@@ -38,10 +38,31 @@ const parseTxt = (filename) => {
     });
 };
 
+const parseHrJson = (filename) => {
+    const filePath = join(__dirname, 'hr_backups', filename);
+    if (!fs.existsSync(filePath)) {
+        console.error(`HR Backup file not found: ${filePath}`);
+        return [];
+    }
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const data = JSON.parse(content);
+        return (data.models || []).map(item => ({
+            rank: item.rank,
+            username: item.hacker,
+            score: item.score
+        }));
+    } catch (e) {
+        console.error(`Error reading HR backup file ${filePath}:`, e);
+        return [];
+    }
+};
+
 // ─── Contest Config ────────────────────────────────────────────────────────────
 // Add a new entry here for each new contest.
 // platform       : 'codeforces' | 'hackerrank'
 // leaderboardFile: static .txt file (past contests). Omit for live API contests.
+// hrBackupFile   : static .json file in hr_backups/ folder (HR backup).
 // name           : display name used in the UI
 // extraParticipants: (optional) CF handles to inject manually (edge-case overrides)
 const CONTEST_CONFIG = {
@@ -52,6 +73,7 @@ const CONTEST_CONFIG = {
     '631211': { platform: 'hackerrank', leaderboardFile: 'leaderboard-codemon5.txt', name: 'Codemon Contest 5', extraParticipants: ['SiddhantSangaonkar', 'SamyakJain092006', 'HailOtg'] },
     '631212': { platform: 'hackerrank', leaderboardFile: 'leaderboard-codemon6.txt', name: 'Codemon Contest 6' },
     '712105': { platform: 'codeforces', name: 'Codemon S2 Contest 1' }, // live CF API
+    // 'codemon-testing-1': { platform: 'hackerrank', hrBackupFile: 'codemon-testing-1.json', name: 'Codemon backup' },
 };
 
 const parseMapping = () => {
@@ -243,7 +265,8 @@ async function getStandingsFromCF(contestId, config) {
             penalty: 0,
             problemResults: [],
         }));
-        return { contest: { id: parseInt(contestId, 10), name: config.name }, problems: [], rows };
+        const parsedId = parseInt(contestId, 10);
+        return { contest: { id: isNaN(parsedId) ? contestId : parsedId, name: config.name }, problems: [], rows };
     }
 
     // Live CF API
@@ -254,6 +277,25 @@ async function getStandingsFromCF(contestId, config) {
 
 // ─── Hackerrank Handler ────────────────────────────────────────────────────────
 async function getStandingsFromHR(contestId, config) {
+    if (config.hrBackupFile) {
+        // HR backup contest: build standings from static .json backup file
+        const leaderboard = parseHrJson(config.hrBackupFile);
+        const rows = leaderboard.map(entry => ({
+            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
+            rank: entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0,
+            penalty: 0,
+            problemResults: [],
+        }));
+        if (config.extraParticipants) {
+            config.extraParticipants.forEach(handle => {
+                rows.push({ party: { members: [{ handle }] }, rank: 999, points: 0, penalty: 0, problemResults: [] });
+            });
+        }
+        const parsedId = parseInt(contestId, 10);
+        return { contest: { id: isNaN(parsedId) ? contestId : parsedId, name: config.name }, problems: [], rows };
+    }
+
     if (config.leaderboardFile) {
         // Past HR contest: build fake standings from static .txt file, map HR → CF handles
         const leaderboard = parseTxt(config.leaderboardFile);
@@ -269,12 +311,14 @@ async function getStandingsFromHR(contestId, config) {
                 rows.push({ party: { members: [{ handle }] }, rank: 999, points: 0, penalty: 0, problemResults: [] });
             });
         }
-        return { contest: { id: parseInt(contestId, 10), name: config.name }, problems: [], rows };
+        const parsedId = parseInt(contestId, 10);
+        return { contest: { id: isNaN(parsedId) ? contestId : parsedId, name: config.name }, problems: [], rows };
     }
 
     // Live HR API — not yet implemented
     console.warn(`[HR] Live API not yet implemented for contest ${contestId}`);
-    return { contest: { id: parseInt(contestId, 10), name: config.name }, problems: [], rows: [] };
+    const parsedId = parseInt(contestId, 10);
+    return { contest: { id: isNaN(parsedId) ? contestId : parsedId, name: config.name }, problems: [], rows: [] };
 }
 
 // ─── Standings Dispatcher ──────────────────────────────────────────────────────
@@ -300,8 +344,8 @@ async function getRawStandings(contestId) {
         throw new Error(`Unknown platform '${config.platform}' for contest ${contestId}`);
     }
 
-    // Cache static (txt-backed) contests permanently; live contests are re-fetched on each poll
-    if (!config || config.leaderboardFile) {
+    // Cache static (txt/json-backed) contests permanently; live contests are re-fetched on each poll
+    if (config && (config.leaderboardFile || config.hrBackupFile)) {
         contestCache.set(contestId, result);
     }
 

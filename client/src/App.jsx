@@ -12,6 +12,7 @@ const SEASONS = {
     label: 'Season 2',
     contests: [
       { id: '712105', platform: 'codeforces' },
+    //   { id:'codemon-testing-1' , platform:'hackerrank'}
     ],
     sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png',
   },
