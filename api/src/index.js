@@ -38,12 +38,21 @@ const parseTxt = (filename) => {
     });
 };
 
-const codemon1Leaderboard = parseTxt('leaderboard-codemon1.txt');
-const codemon2Leaderboard = parseTxt('leaderboard-codemon2.txt');
-const codemon3Leaderboard = parseTxt('leaderboard-codemon3.txt');
-const codemon4Leaderboard = parseTxt('leaderboard-codemon4.txt');
-const codemon5Leaderboard = parseTxt('leaderboard-codemon5.txt');
-const codemon6Leaderboard = parseTxt('leaderboard-codemon6.txt');
+// ─── Contest Config ────────────────────────────────────────────────────────────
+// Add a new entry here for each new contest.
+// platform       : 'codeforces' | 'hackerrank'
+// leaderboardFile: static .txt file (past contests). Omit for live API contests.
+// name           : display name used in the UI
+// extraParticipants: (optional) CF handles to inject manually (edge-case overrides)
+const CONTEST_CONFIG = {
+    '631207': { platform: 'codeforces', leaderboardFile: 'leaderboard-codemon1.txt', name: 'Codemon Contest 1' },
+    '631208': { platform: 'hackerrank', leaderboardFile: 'leaderboard-codemon2.txt', name: 'Codemon Contest 2' },
+    '631209': { platform: 'codeforces', leaderboardFile: 'leaderboard-codemon3.txt', name: 'Codemon Contest 3' },
+    '631210': { platform: 'hackerrank', leaderboardFile: 'leaderboard-codemon4.txt', name: 'Codemon Contest 4' },
+    '631211': { platform: 'hackerrank', leaderboardFile: 'leaderboard-codemon5.txt', name: 'Codemon Contest 5', extraParticipants: ['SiddhantSangaonkar', 'SamyakJain092006', 'HailOtg'] },
+    '631212': { platform: 'hackerrank', leaderboardFile: 'leaderboard-codemon6.txt', name: 'Codemon Contest 6' },
+    '712105': { platform: 'codeforces', name: 'Codemon S2 Contest 1' }, // live CF API
+};
 
 const parseMapping = () => {
     const filePath = path.join(__dirname, 'mapping.txt');
@@ -222,118 +231,84 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
     return standingsData;
 }
 
+// ─── Codeforces Handler ────────────────────────────────────────────────────────
+async function getStandingsFromCF(contestId, config) {
+    if (config.leaderboardFile) {
+        // Past CF contest: build standings from static .txt file
+        const leaderboard = parseTxt(config.leaderboardFile);
+        const rows = leaderboard.map(entry => ({
+            party: { members: [{ handle: entry.username }] },
+            rank: entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0,
+            penalty: 0,
+            problemResults: [],
+        }));
+        return { contest: { id: parseInt(contestId, 10), name: config.name }, problems: [], rows };
+    }
+
+    // Live CF API
+    const data = await fetchStandings({ contestId });
+    if (data.status === 'OK') return data.result;
+    throw new Error(data.comment || `Failed to fetch CF standings for contest ${contestId}`);
+}
+
+// ─── Hackerrank Handler ────────────────────────────────────────────────────────
+async function getStandingsFromHR(contestId, config) {
+    if (config.leaderboardFile) {
+        // Past HR contest: build fake standings from static .txt file, map HR → CF handles
+        const leaderboard = parseTxt(config.leaderboardFile);
+        const rows = leaderboard.map(entry => ({
+            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
+            rank: entry.rank,
+            points: entry.rank <= 30 ? 31 - entry.rank : 0,
+            penalty: 0,
+            problemResults: [],
+        }));
+        if (config.extraParticipants) {
+            config.extraParticipants.forEach(handle => {
+                rows.push({ party: { members: [{ handle }] }, rank: 999, points: 0, penalty: 0, problemResults: [] });
+            });
+        }
+        return { contest: { id: parseInt(contestId, 10), name: config.name }, problems: [], rows };
+    }
+
+    // Live HR API — not yet implemented
+    console.warn(`[HR] Live API not yet implemented for contest ${contestId}`);
+    return { contest: { id: parseInt(contestId, 10), name: config.name }, problems: [], rows: [] };
+}
+
+// ─── Standings Dispatcher ──────────────────────────────────────────────────────
 async function getRawStandings(contestId) {
     if (contestCache.has(contestId)) return contestCache.get(contestId);
 
-    if (contestId === '631207') {
-        const rows = codemon1Leaderboard.map(entry => ({
-            party: { members: [{ handle: entry.username }] },
-            rank: entry.rank,
-            points: entry.rank <= 30 ? 31 - entry.rank : 0, 
-            penalty: 0,
-            problemResults: []
-        }));
-        const fakeStandings = { contest: { id: 631207, name: 'Codemon Contest 1' }, problems: [], rows };
-        contestCache.set(contestId, fakeStandings);
-        return fakeStandings;
-    }
-    
-    if (contestId === '631208') {
-        const rows = codemon2Leaderboard.map(entry => ({
-            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
-            rank: entry.rank,
-            points: 5,
-            penalty: 0,
-            problemResults: []
-        }));
-        const fakeStandings = { contest: { id: 631208, name: 'Codemon Contest 2' }, problems: [], rows };
-        contestCache.set(contestId, fakeStandings);
-        return fakeStandings;
-    }
-    
-    if (contestId === '631209') {
-        const rows = codemon3Leaderboard.map(entry => ({
-            party: { members: [{ handle: entry.username }] },
-            rank: entry.rank,
-            points: entry.rank <= 30 ? 31 - entry.rank : 0, 
-            penalty: 0,
-            problemResults: []
-        }));
-        const fakeStandings = { contest: { id: 631209, name: 'Codemon Contest 3' }, problems: [], rows };
-        contestCache.set(contestId, fakeStandings);
-        return fakeStandings;
+    const config = CONTEST_CONFIG[contestId];
+
+    let result;
+    if (!config) {
+        // Unknown contest: fall back to live CF API
+        const data = await fetchStandings({ contestId });
+        if (data.status === 'OK') {
+            result = data.result;
+        } else {
+            throw new Error(data.comment || `Failed to fetch standings for contest ${contestId}`);
+        }
+    } else if (config.platform === 'codeforces') {
+        result = await getStandingsFromCF(contestId, config);
+    } else if (config.platform === 'hackerrank') {
+        result = await getStandingsFromHR(contestId, config);
+    } else {
+        throw new Error(`Unknown platform '${config.platform}' for contest ${contestId}`);
     }
 
-    if (contestId === '631210') {
-        const rows = codemon4Leaderboard.map(entry => ({
-            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
-            rank: entry.rank,
-            points: entry.rank <= 30 ? 31 - entry.rank : 0,
-            penalty: 0,
-            problemResults: []
-        }));
-        const fakeStandings = { contest: { id: 631210, name: 'Codemon Contest 4' }, problems: [], rows };
-        contestCache.set(contestId, fakeStandings);
-        return fakeStandings;
+    // Cache static (txt-backed) contests permanently; live contests are re-fetched on each poll
+    if (!config || config.leaderboardFile) {
+        contestCache.set(contestId, result);
     }
 
-    if (contestId === '631211') {
-        const rows = codemon5Leaderboard.map(entry => ({
-            party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
-            rank: entry.rank,
-            points: entry.rank <= 30 ? 31 - entry.rank : 0,
-            penalty: 0,
-            problemResults: []
-        }));
-        rows.push({
-            party: { members: [{ handle: 'SiddhantSangaonkar' }] },
-            rank: 999,
-            points: 0,
-            penalty: 0,
-            problemResults: []
-        });
-        rows.push({
-            party: { members: [{ handle: 'SamyakJain092006' }] },
-            rank: 999,
-            points: 0,
-            penalty: 0,
-            problemResults: []
-        });
-        rows.push({
-            party: { members: [{ handle: 'HailOtg' }] },
-            rank: 999,
-            points: 0,
-            penalty: 0,
-            problemResults: []
-        });
-        const fakeStandings = { contest: { id: 631211, name: 'Codemon Contest 5' }, problems: [], rows };
-        contestCache.set(contestId, fakeStandings);
-        return fakeStandings;
-    }
-
-    if (contestId === '631212') {
-    const rows = codemon6Leaderboard.map(entry => ({
-        party: { members: [{ handle: invertedUsernameMapping[entry.username] || entry.username }] },
-        rank: entry.rank,
-        points: entry.rank <= 30 ? 31 - entry.rank : 0,
-        penalty: 0,
-        problemResults: []
-    }));
-    const fakeStandings = { contest: { id: 631212, name: 'Codemon Contest 6' }, problems: [], rows };
-    contestCache.set(contestId, fakeStandings);
-    return fakeStandings;
-    }
-
-    const data = await fetchStandings({
-        contestId
-    });
-
-    if (data.status === 'OK') {
-        contestCache.set(contestId, data.result);
-        return data.result;
-    }
-    throw new Error(data.comment || `Failed to fetch standings for contest ${contestId}`);
+    return result;
 }
+
+
 
 app.get('/api/multiconteststandings', async (req, res) => {
     const { contestIds } = req.query;

@@ -8,8 +8,25 @@ import Announcements from './Announcements';
 const API_URL = 'http://localhost:8787'; // Changed for local development (was 'https://codemon-leaderboard.onrender.com')
 
 const SEASONS = {
-  2: { label: 'Season 2', contestIds: '712105', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
-  1: { label: 'Season 1', contestIds: '631207,631208,631209,631210,631211,631212', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png' },
+  2: {
+    label: 'Season 2',
+    contests: [
+      { id: '712105', platform: 'codeforces' },
+    ],
+    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png',
+  },
+  1: {
+    label: 'Season 1',
+    contests: [
+      { id: '631207', platform: 'codeforces' },
+      { id: '631208', platform: 'hackerrank' },
+      { id: '631209', platform: 'codeforces' },
+      { id: '631210', platform: 'hackerrank' },
+      { id: '631211', platform: 'hackerrank' },
+      { id: '631212', platform: 'hackerrank' },
+    ],
+    sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png',
+  },
 };
 
 function AppContent() {
@@ -52,7 +69,7 @@ function AppContent() {
 
 
   const fetchLeaderboard = async (seasonKey = season) => {
-    const idsToFetch = SEASONS[seasonKey].contestIds;
+    const idsToFetch = SEASONS[seasonKey].contests.map(c => c.id).join(',');
     if (!idsToFetch || !idsToFetch.trim()) {
       setStatus('loading');
       await new Promise(resolve => setTimeout(resolve, 1000));
