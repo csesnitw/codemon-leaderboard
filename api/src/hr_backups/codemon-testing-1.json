@@ -1,0 +1,45 @@
+{
+  "models": [
+    {
+      "hacker_id": 30739985,
+      "language": null,
+      "worst_testcase_time": null,
+      "rank": 1,
+      "score": 5.0,
+      "time_taken": 32230.0,
+      "index": 0,
+      "hacker": "siddhantsan28",
+      "avatar": "https://d1ce3iv5vajdy.cloudfront.net/hackerrank/assets/gravatar.jpg",
+      "country": "India",
+      "school": null,
+      "company": "",
+      "timestamp": 1787337012,
+      "submitted_at": "28 days",
+      "is_multiple_contest": false,
+      "level": 5
+    },
+    {
+      "hacker_id": 30738548,
+      "language": null,
+      "worst_testcase_time": null,
+      "rank": 2,
+      "score": 2.0,
+      "time_taken": 8568.0,
+      "index": 1,
+      "hacker": "appuydv121",
+      "avatar": "https://d1ce3iv5vajdy.cloudfront.net/hackerrank/assets/gravatar.jpg",
+      "country": "India",
+      "school": null,
+      "company": "",
+      "timestamp": 1787333162,
+      "submitted_at": "28 days",
+      "is_multiple_contest": false,
+      "level": 5
+    }
+  ],
+  "page": 1,
+  "total": 2,
+  "current_hacker": null,
+  "available": true,
+  "self_display": true
+}
