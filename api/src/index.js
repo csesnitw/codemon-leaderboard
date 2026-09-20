@@ -512,6 +512,26 @@ async function fetchStandings(queryParams) {
     }
 }
 
+app.get('/api/announcements', (req, res) => {
+    try {
+        const filePath = join(__dirname, 'announcements.json');
+        if (!fs.existsSync(filePath)) {
+            return res.json({ status: 'OK', announcements: [] });
+        }
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const data = JSON.parse(content);
+        const { season } = req.query;
+        let announcements = data;
+        if (season) {
+            announcements = announcements.filter(a => Number(a.season) === Number(season));
+        }
+        res.json({ status: 'OK', announcements });
+    } catch (err) {
+        console.error('Error fetching announcements:', err);
+        res.status(500).json({ status: 'FAILED', comment: 'Failed to read announcements file' });
+    }
+});
+
 app.get('/health', (_, res) => res.json({ ok: true }));
 const server = app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
 const wss = new WebSocketServer({ server, path: '/ws' });
