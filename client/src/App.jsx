@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import LoadingSpinner from './LoadingSpinner';
 
-// const API_URL = 'https://codemon-leaderboard.onrender.com';
-const API_URL = 'http://localhost:8787';
+const API_URL = 'https://codemon-leaderboard.onrender.com';
+// const API_URL = 'http://localhost:8787';
 
 const SEASONS = {
   2: { label: 'Season 2', contestIds: '712105', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
