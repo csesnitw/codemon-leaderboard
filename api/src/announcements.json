@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1",
+    "season": 1,
+    "title": "Note on Codemon Contest 1 (CodeForces)",
+    "content": "CodeMon Contest 1 was held on CodeForces. Due to technical issues during the contest, the first-AC bonus was disabled, and ranks were determined by score only.",
+    "date": "2024-09-01",
+    "imageUrl": ""
+  },
+  {
+    "id": "2",
+    "season": 1,
+    "title": "Note on Codemon Contest 2 (HackerRank)",
+    "content": "CodeMon Contest 2 was held on HackerRank. All participants receive a base score of 5 points. Streak bonuses are applied based on participation in previous contests.",
+    "date": "2024-09-05",
+    "imageUrl": ""
+  },
+  {
+    "id": "3",
+    "season": 2,
+    "title": "Welcome to CodeMon Season 2!",
+    "content": "Season 2 is officially live! Track your performance and streak multiplier across all contests in Season 2.",
+    "date": "2024-10-01",
+    "imageUrl": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png"
+  }
+]

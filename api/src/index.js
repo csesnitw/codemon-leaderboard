@@ -6,6 +6,31 @@ import crypto from 'crypto';
 import { WebSocketServer } from 'ws';
 import fs from 'fs';
 import path from 'path';
+import { fetchHackerRankStandings } from './fetch_hackerrank.js';
+
+export function extractRollNo(identifier, email = null) {
+    if (!identifier && !email) return null;
+    if (email) {
+        const cleanEmail = email.trim().toLowerCase();
+        const match = cleanEmail.match(/(\d{2}[a-z]{2,3}\d[a-z]\d{2})/);
+        if (match) return match[1].toLowerCase();
+    }
+    const cleanId = (identifier || '').trim();
+    const lowerId = cleanId.toLowerCase();
+
+    const USERNAME_ROLL_MAP = {
+        'samyakjain092006': '25csb0a04'
+    };
+    if (USERNAME_ROLL_MAP[lowerId]) {
+        return USERNAME_ROLL_MAP[lowerId];
+    }
+
+    const cfMatch = lowerId.replace(/^g\d+=/, '').match(/^(\d{2}[a-z]{2,3}\d[a-z]\d{2})$/);
+    if (cfMatch) return cfMatch[1].toLowerCase();
+    const genericMatch = lowerId.match(/(\d{2}[a-z]{2,3}\d[a-z]\d{2})/);
+    if (genericMatch) return genericMatch[1].toLowerCase();
+    return cleanId;
+}
 
 const app = express();
 const PORT = process.env.PORT || 8787;
@@ -69,7 +94,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('src'));
 
-function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
+function calculateScoresAndStreaks(standingsData, contestId, userHistory, contestOrder = []) {
     if (!standingsData || !standingsData.rows) return standingsData;
 
     const firstAcByProblem = new Map();
@@ -184,7 +209,17 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory) {
 
     const finalScoredRows = scoredRows.map(row => {
         const handle = row.party.members[0].handle;
-        const history = userHistory.get(handle).sort((a, b) => parseInt(a.contestId, 10) - parseInt(b.contestId, 10));
+        const history = userHistory.get(handle);
+        if (contestOrder && contestOrder.length) {
+            history.sort((a, b) => contestOrder.indexOf(a.contestId) - contestOrder.indexOf(b.contestId));
+        } else {
+            history.sort((a, b) => {
+                const numA = parseInt(a.contestId, 10);
+                const numB = parseInt(b.contestId, 10);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a.contestId.localeCompare(b.contestId);
+            });
+        }
         let streak = 0;
         const currentContestIdx = history.findIndex(h => h.contestId === contestId);
         if (currentContestIdx !== -1) {
@@ -324,13 +359,63 @@ async function getRawStandings(contestId) {
     return fakeStandings;
     }
 
+    const isHackerRank = contestId.startsWith('hr:') || (!/^\d+$/.test(contestId) && contestId.includes('-'));
+    if (isHackerRank) {
+        const slug = contestId.replace(/^hr:/, '');
+        const hrData = await fetchHackerRankStandings(slug);
+        const rows = hrData.participants.map(entry => {
+            const canonicalId = extractRollNo(entry.hacker, entry.email);
+            return {
+                party: {
+                    members: [{
+                        handle: canonicalId,
+                        rawHandle: entry.hacker,
+                        name: entry.hacker,
+                        email: entry.email
+                    }]
+                },
+                rank: entry.rank,
+                points: entry.score,
+                penalty: entry.time_taken || 0,
+                problemResults: []
+            };
+        });
+
+        const standings = {
+            contest: {
+                id: contestId,
+                name: hrData.contest.name || `HackerRank: ${slug}`
+            },
+            problems: [],
+            rows
+        };
+
+        contestCache.set(contestId, standings);
+        return standings;
+    }
+
     const data = await fetchStandings({
         contestId
     });
 
     if (data.status === 'OK') {
-        contestCache.set(contestId, data.result);
-        return data.result;
+        const rows = data.result.rows.map(row => {
+            const member = row.party.members[0];
+            const canonicalId = extractRollNo(member.handle);
+            return {
+                ...row,
+                party: {
+                    members: [{
+                        ...member,
+                        rawHandle: member.handle,
+                        handle: canonicalId
+                    }]
+                }
+            };
+        });
+        const standings = { ...data.result, rows };
+        contestCache.set(contestId, standings);
+        return standings;
     }
     throw new Error(data.comment || `Failed to fetch standings for contest ${contestId}`);
 }
@@ -341,22 +426,41 @@ app.get('/api/multiconteststandings', async (req, res) => {
 
     const ids = contestIds.split(',').map(id => id.trim());
     const cumulativeScores = new Map();
+    const participantMeta = new Map();
     try {
         const allRawContestData = await Promise.all(ids.map(id => getRawStandings(id)));
-        allRawContestData.sort((a, b) => parseInt(a.contest.id, 10) - parseInt(b.contest.id, 10));
+        allRawContestData.sort((a, b) => ids.indexOf(a.contest.id.toString()) - ids.indexOf(b.contest.id.toString()));
         const requestScopedHistory = new Map();
         const processedContests = {};
         for (const rawData of allRawContestData) {
             const contestId = rawData.contest.id.toString();
-            processedContests[contestId] = calculateScoresAndStreaks(JSON.parse(JSON.stringify(rawData)), contestId, requestScopedHistory);
+            processedContests[contestId] = calculateScoresAndStreaks(JSON.parse(JSON.stringify(rawData)), contestId, requestScopedHistory, ids);
         }
         for (const contestId of ids) {
             const contestData = processedContests[contestId];
             if (!contestData) continue;
+            const seenInThisContest = new Set();
             for (const row of contestData.rows) {
-                const handle = row.party.members[0].name ? row.party.members[0].name : row.party.members[0].handle;
-                if (!cumulativeScores.has(handle)) cumulativeScores.set(handle, { score: 0, penalty: 0, contests: {} });
-                const userEntry = cumulativeScores.get(handle);
+                const member = row.party.members[0];
+                const canonicalId = member.handle;
+                if (seenInThisContest.has(canonicalId)) continue;
+                seenInThisContest.add(canonicalId);
+
+                const currentName = member.name || member.rawHandle || canonicalId;
+                if (!participantMeta.has(canonicalId)) {
+                    participantMeta.set(canonicalId, {
+                        displayName: currentName,
+                        rollNo: canonicalId
+                    });
+                } else {
+                    const meta = participantMeta.get(canonicalId);
+                    if (currentName && currentName.includes(' ') && !meta.displayName.includes(' ')) {
+                        meta.displayName = currentName;
+                    }
+                }
+
+                if (!cumulativeScores.has(canonicalId)) cumulativeScores.set(canonicalId, { score: 0, penalty: 0, contests: {} });
+                const userEntry = cumulativeScores.get(canonicalId);
                 userEntry.score += row.customScore;
                 userEntry.penalty += row.penalty;
                 userEntry.contests[contestId] = {
@@ -365,7 +469,14 @@ app.get('/api/multiconteststandings', async (req, res) => {
                 };
             }
         }
-        const leaderboard = Array.from(cumulativeScores.entries()).map(([handle, data]) => ({ handle, ...data })).sort((a, b) => b.score - a.score || a.penalty - b.penalty);
+        const leaderboard = Array.from(cumulativeScores.entries()).map(([canonicalId, data]) => {
+            const meta = participantMeta.get(canonicalId) || {};
+            return {
+                handle: meta.displayName || canonicalId,
+                rollNo: meta.rollNo || canonicalId,
+                ...data
+            };
+        }).sort((a, b) => b.score - a.score || a.penalty - b.penalty);
         const contestDetails = ids.map(id => {
             const contestData = allRawContestData.find(data => data.contest.id.toString() === id);
             return { id, name: contestData ? contestData.contest.name : `Contest ${id}` };
@@ -400,6 +511,26 @@ async function fetchStandings(queryParams) {
         return data;
     }
 }
+
+app.get('/api/announcements', (req, res) => {
+    try {
+        const filePath = join(__dirname, 'announcements.json');
+        if (!fs.existsSync(filePath)) {
+            return res.json({ status: 'OK', announcements: [] });
+        }
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const data = JSON.parse(content);
+        const { season } = req.query;
+        let announcements = data;
+        if (season) {
+            announcements = announcements.filter(a => Number(a.season) === Number(season));
+        }
+        res.json({ status: 'OK', announcements });
+    } catch (err) {
+        console.error('Error fetching announcements:', err);
+        res.status(500).json({ status: 'FAILED', comment: 'Failed to read announcements file' });
+    }
+});
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 const server = app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
