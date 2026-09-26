@@ -2,11 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import LoadingSpinner from './LoadingSpinner';
 
-const API_URL = 'https://codemon-leaderboard.onrender.com';
-// const API_URL = 'http://localhost:8787';
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 
 const SEASONS = {
-  2: { label: 'Season 2', contestIds: '712105', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+  2: { label: 'Season 2', contestIds: '712105,719334', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
   1: { label: 'Season 1', contestIds: '631207,631208,631209,631210,631211,631212', sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png' },
 };
 
