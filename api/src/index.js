@@ -115,6 +115,7 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory, contes
     const scoredRows = standingsData.rows.map(row => {
         const handle = row.party.members[0].handle;
         contestParticipants.add(handle);
+        console.log(standingsData.rows[0]);
 
         let baseScore = 0;
         let firstAcBonus = 0;
@@ -178,22 +179,33 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory, contes
             if (firstAcBonuses[handle]) {
                 firstAcBonus = firstAcBonuses[handle];
             }
-        } else if (contestId === '712105') { // codemon s2 cont 1
-            if (row.rank <= 30) baseScore = 31 - row.rank;
-        } else { 
-            if (row.points > 0) {
-                if (row.rank <= 30) baseScore = 31 - row.rank;
-                if (row.problemResults) {
-                    row.problemResults.forEach((pr, index) => {
-                        const firstAc = firstAcByProblem.get(index);
-                        if (pr.points > 0 && firstAc && firstAc.handle === handle && firstAc.time === pr.bestSubmissionTimeSeconds) {
-                            firstAcBonus += 2;
-                        }
-                    });
-                }
+        } else {
+            // new season 2 rules
+            const rankToBaseScore = {
+                1: 100,
+                2: 80,
+                3: 70,
+                4: 60,
+                5: 50,
+                6: 45,
+                7: 40,
+                8: 35,
+                9: 30,
+                10: 25
             }
+            if (row.rank <= 10){
+                baseScore = rankToBaseScore[row.rank];
+            }
+            else{
+                baseScore = Math.max(25 - (row.rank - 10), 0);
+            }
+            firstAcBonus = [...firstAcByProblem.entries()].reduce(
+                (bonus, [problemIndex, firstAc]) =>
+                    firstAc.handle === handle ? bonus + (problemIndex + 1) * 1.5 : bonus,
+                0
+            );
         }
-        
+
         const rawScore = baseScore + firstAcBonus;
         if (!userHistory.has(handle)) userHistory.set(handle, []);
         const history = userHistory.get(handle);
@@ -224,7 +236,7 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory, contes
         const currentContestIdx = history.findIndex(h => h.contestId === contestId);
         if (currentContestIdx !== -1) {
             for (let i = currentContestIdx; i >= 0; i--) {
-                if (history[i].score > 0) streak++;
+                if (history[i].score >= 0) streak++;
                 else break;
             }
         }
