@@ -320,8 +320,13 @@ export default function App() {
                         </div>
                       </td>
                       <td className="px-3 py-2 font-bold text-primary">{row.score.toFixed(2)}</td>
+                      {/* TODO: change this as a param passed from the backend*/}
                       {contestHeaders.map(contestHeader => {
                         const contest = row.contests[contestHeader.id];
+                        const multiplier = contest?.streak >= 4 ? 1.15
+                          : contest?.streak === 3 ? 1.10
+                            : contest?.streak === 2 ? 1.05
+                              : 1.00;
                         return (
                           <td key={contestHeader.id} className="px-3 py-2">
                             {contest ? (
@@ -330,7 +335,7 @@ export default function App() {
                                 <div className="text-secondary text-[10px]">
                                   ({contest.baseScore?.toFixed(2) || '0.00'}
                                   +{contest.firstAcBonus?.toFixed(2) || '0.00'})
-                                  x{((contest.streakBonus / (contest.baseScore + contest.firstAcBonus)) + 1).toFixed(2) || '1.00'}
+                                  x{multiplier.toFixed(2)}
                                 </div>
                                 <div className="text-primary">Rank: <span className={rankClass(contest.rank)}>{contest.rank || 'N/A'}</span></div>
                                 <div className="text-primary">Streak: <span className="text-amber-300">{contest.streak || 0}x</span></div>

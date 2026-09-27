@@ -236,7 +236,7 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory, contes
         const currentContestIdx = history.findIndex(h => h.contestId === contestId);
         if (currentContestIdx !== -1) {
             for (let i = currentContestIdx; i >= 0; i--) {
-                if (history[i].score > 0) streak++;
+                if (history[i].score >= 0) streak++;
                 else break;
             }
         }
