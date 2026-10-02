@@ -115,8 +115,6 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory, contes
     const scoredRows = standingsData.rows.map(row => {
         const handle = row.party.members[0].handle;
         contestParticipants.add(handle);
-        console.log(standingsData.rows[0]);
-
         let baseScore = 0;
         let firstAcBonus = 0;
 
@@ -251,15 +249,6 @@ function calculateScoresAndStreaks(standingsData, contestId, userHistory, contes
 
     finalScoredRows.sort((a, b) => b.customScore - a.customScore || a.penalty - b.penalty);
     
-    let currentRank = 0, lastScore = -1, lastPenalty = -1;
-    finalScoredRows.forEach((row, index) => {
-        if (row.customScore !== lastScore || row.penalty !== lastPenalty) {
-            currentRank = index + 1;
-            lastScore = row.customScore;
-            lastPenalty = row.penalty;
-        }
-        row.rank = currentRank;
-    });
     standingsData.rows = finalScoredRows;
     for (const [handle, history] of userHistory.entries()) {
         if (!contestParticipants.has(handle) && !history.find(e => e.contestId === contestId)) {
